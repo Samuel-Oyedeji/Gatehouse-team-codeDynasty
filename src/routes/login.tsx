@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import markAsset from "@/assets/gatehouse-mark.jpeg";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -14,7 +15,8 @@ function LoginPage() {
     <div className="min-h-screen grid place-items-center bg-canvas px-4">
       <div className="w-full max-w-md">
         <Link to="/" className="flex items-center gap-2 justify-center mb-6">
-          <div className="h-7 w-7 rounded-md bg-brand text-white grid place-items-center font-display font-bold">G</div>
+          {/* <div className="h-7 w-7 rounded-md bg-brand text-white grid place-items-center font-display font-bold">G</div> */}
+          <img src={markAsset} alt="HireFlow logo" className="h-7 w-7 object-contain" />
           <span className="font-display text-lg font-semibold tracking-tight">Gatehouse</span>
         </Link>
         <Card className="p-8">

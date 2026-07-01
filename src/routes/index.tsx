@@ -6,6 +6,8 @@ import { ArrowRight, CheckCircle2, Receipt, AlertTriangle, Wrench, Eye, ShieldCh
 import { StatusPill } from "@/components/gatehouse/status-pill";
 import { Money } from "@/components/gatehouse/money";
 import { AccountNumber } from "@/components/gatehouse/account-number";
+import markAsset from "@/assets/gatehouse-mark.jpeg";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,7 +40,8 @@ function Header() {
     <header className="border-b border-border bg-card/80 backdrop-blur sticky top-0 z-10">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-md bg-brand text-white grid place-items-center font-display font-bold">G</div>
+          {/* <div className="h-7 w-7 rounded-md bg-brand text-white grid place-items-center font-display font-bold">G</div> */}
+          <img src={markAsset} alt="HireFlow logo" className="h-7 w-7 object-contain" />
           <span className="font-display text-lg font-semibold tracking-tight">Gatehouse</span>
         </Link>
         <nav className="hidden md:flex items-center gap-7 text-sm text-muted-foreground">

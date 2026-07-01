@@ -3,6 +3,7 @@ import { LayoutDashboard, Home, Receipt, ArrowLeftRight, AlertTriangle, Wrench, 
 import { useGatehouse } from "@/lib/store";
 import { SimulatePayment } from "@/components/gatehouse/simulate-payment";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import markAsset from "@/assets/gatehouse-mark.jpeg";
 
 export const Route = createFileRoute("/app")({
   component: AppShell,
@@ -29,7 +30,8 @@ function AppShell() {
       <aside className="w-60 shrink-0 border-r border-border bg-card flex flex-col">
         <div className="h-16 flex items-center px-5 border-b border-border">
           <Link to="/app/dashboard" className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-brand text-white grid place-items-center font-display font-bold">G</div>
+            {/* <div className="h-7 w-7 rounded-md bg-brand text-white grid place-items-center font-display font-bold">G</div> */}
+            <img src={markAsset} alt="HireFlow logo" className="h-7 w-7 object-contain" />
             <span className="font-display text-lg font-semibold tracking-tight">Gatehouse</span>
           </Link>
         </div>

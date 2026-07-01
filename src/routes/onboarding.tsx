@@ -9,6 +9,8 @@ import { Progress } from "@/components/ui/progress";
 import { AccountNumber } from "@/components/gatehouse/account-number";
 import { CheckCircle2, Upload, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import markAsset from "@/assets/gatehouse-mark.jpeg";
+
 
 export const Route = createFileRoute("/onboarding")({
   component: OnboardingPage,
@@ -23,7 +25,8 @@ function OnboardingPage() {
       <header className="border-b border-border bg-card">
         <div className="max-w-2xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-brand text-white grid place-items-center font-display font-bold">G</div>
+            {/* <div className="h-7 w-7 rounded-md bg-brand text-white grid place-items-center font-display font-bold">G</div> */}
+            <img src={markAsset} alt="HireFlow logo" className="h-7 w-7 object-contain" />
             <span className="font-display text-lg font-semibold tracking-tight">Gatehouse</span>
           </Link>
           <div className="text-sm text-muted-foreground tabular">Step {step} of {total}</div>
