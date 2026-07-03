@@ -1,0 +1,287 @@
+// Gatehouse data model. Money is stored as integer kobo everywhere (fields end in `Kobo`);
+// naira formatting happens only at the view-model / UI edge (see src/lib/server/state.ts).
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AllocationRule {
+  OLDEST_FIRST
+  DUES_FIRST
+}
+
+enum OccupancyType {
+  OWNER
+  TENANT
+}
+
+enum UnitStatus {
+  PAID
+  PARTIAL
+  OVERDUE
+  UNBILLED
+  CREDIT
+}
+
+enum ChargeSource {
+  SERVICE_CHARGE
+  LEVY
+}
+
+enum ChargeStatus {
+  OPEN
+  PARTIAL
+  SETTLED
+}
+
+enum PaymentStatus {
+  MATCHED
+  PARTIAL
+  OVERPAYMENT
+  EXCEPTION
+  MANUAL
+}
+
+enum ExceptionType {
+  OVERPAYMENT
+  DUPLICATE
+  MISDIRECTED
+  THIRD_PARTY
+}
+
+enum ExceptionStatus {
+  OPEN
+  RESOLVED
+}
+
+enum PayoutStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REVERSED
+}
+
+enum VirtualAccountStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+model Estate {
+  id                    String         @id @default(cuid())
+  name                  String
+  address               String
+  city                  String
+  cycleLabel            String // current billing cycle, e.g. "Q3 2026"
+  nombaAccountId        String? // parent Nomba accountId
+  allocationRule        AllocationRule @default(OLDEST_FIRST)
+  serviceChargeKobo     Int            @default(0)
+  serviceChargeCadence  String         @default("quarterly")
+  autoCreditThresholdKobo Int          @default(0) // surplus above this raises an exception; 0 = always auto-credit
+  duplicateWindowSecs   Int            @default(900) // 15 minutes
+  createdAt             DateTime       @default(now())
+
+  users       User[]
+  units       Unit[]
+  billingRuns BillingRun[]
+  levies      Levy[]
+  vendors     Vendor[]
+  payouts     Payout[]
+  activity    Activity[]
+  payments    Payment[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  estateId     String
+  estate       Estate   @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  name         String
+  email        String   @unique
+  phone        String?
+  role         String   @default("treasurer")
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Unit {
+  id               String        @id @default(cuid())
+  estateId         String
+  estate           Estate        @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  label            String // "A1"
+  block            String // "A"
+  occupantName     String
+  occupantPhone    String?
+  occupancyType    OccupancyType @default(OWNER)
+  balanceKobo      Int           @default(0)
+  creditBalanceKobo Int          @default(0)
+  status           UnitStatus    @default(UNBILLED)
+  lastPaymentAt    DateTime?
+  createdAt        DateTime      @default(now())
+
+  virtualAccount VirtualAccount?
+  charges        Charge[]
+  payments       Payment[]
+  creditEntries  CreditEntry[]
+  residentLink   ResidentLink?
+
+  @@unique([estateId, label])
+}
+
+model VirtualAccount {
+  id              String               @id @default(cuid())
+  unitId          String               @unique
+  unit            Unit                 @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  nombaAccountRef String               @unique // the accountRef we send to Nomba (>=16 chars)
+  accountNumber   String? // NUBAN returned by Nomba
+  bankName        String?
+  status          VirtualAccountStatus @default(PENDING)
+  provisionedAt   DateTime?
+}
+
+model BillingRun {
+  id             String   @id @default(cuid())
+  estateId       String
+  estate         Estate   @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  cycleLabel     String
+  chargeAmountKobo Int
+  unitScope      Json // list of unit ids billed (or {"all": true})
+  createdAt      DateTime @default(now())
+
+  charges Charge[]
+}
+
+model Levy {
+  id          String   @id @default(cuid())
+  estateId    String
+  estate      Estate   @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  name        String
+  amountKobo  Int
+  dueDate     DateTime
+  unitScope   Json
+  requireExact Boolean @default(false)
+  createdAt   DateTime @default(now())
+
+  charges Charge[]
+}
+
+model Charge {
+  id                String       @id @default(cuid())
+  unitId            String
+  unit              Unit         @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  sourceType        ChargeSource
+  billingRunId      String?
+  billingRun        BillingRun?  @relation(fields: [billingRunId], references: [id])
+  levyId            String?
+  levy              Levy?        @relation(fields: [levyId], references: [id])
+  description       String
+  cycleLabel        String
+  originalAmountKobo Int
+  outstandingKobo   Int
+  dueDate           DateTime
+  status            ChargeStatus @default(OPEN)
+  createdAt         DateTime     @default(now())
+
+  allocations Allocation[]
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  estateId       String
+  estate         Estate        @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  unitId         String?
+  unit           Unit?         @relation(fields: [unitId], references: [id])
+  nombaTxnRef    String        @unique // idempotency key (Nomba transactionId or synthetic for manual)
+  grossAmountKobo Int
+  sourceName     String
+  sourceAccount  String?
+  receivedAt     DateTime      @default(now())
+  status         PaymentStatus
+  tag            String? // e.g. "Paid on behalf"
+  rawPayload     Json?
+  createdAt      DateTime      @default(now())
+
+  allocations Allocation[]
+  exception   Exception?
+}
+
+model Allocation {
+  id         String   @id @default(cuid())
+  paymentId  String
+  payment    Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  chargeId   String
+  charge     Charge   @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  amountKobo Int
+  createdAt  DateTime @default(now())
+}
+
+model CreditEntry {
+  id         String   @id @default(cuid())
+  unitId     String
+  unit       Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  amountKobo Int // positive = credit added, negative = credit consumed
+  reason     String
+  createdAt  DateTime @default(now())
+}
+
+model Exception {
+  id             String          @id @default(cuid())
+  paymentId      String          @unique
+  payment        Payment         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  type           ExceptionType
+  suggestion     String
+  candidateUnitId String?
+  status         ExceptionStatus @default(OPEN)
+  resolvedAt     DateTime?
+  resolutionNote String?
+  createdAt      DateTime        @default(now())
+}
+
+model Vendor {
+  id            String   @id @default(cuid())
+  estateId      String
+  estate        Estate   @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  name          String
+  category      String
+  bankName      String
+  bankCode      String?
+  accountNumber String
+  createdAt     DateTime @default(now())
+
+  payouts Payout[]
+}
+
+model Payout {
+  id           String       @id @default(cuid())
+  estateId     String
+  estate       Estate       @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  vendorId     String
+  vendor       Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  amountKobo   Int
+  note         String
+  merchantTxRef String      @unique // idempotency key sent to Nomba transfers
+  nombaTxnRef  String? // id returned by Nomba
+  status       PayoutStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+}
+
+model ResidentLink {
+  id           String    @id @default(cuid())
+  unitId       String    @unique
+  unit         Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  token        String    @unique
+  createdAt    DateTime  @default(now())
+  lastViewedAt DateTime?
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  estateId  String
+  estate    Estate   @relation(fields: [estateId], references: [id], onDelete: Cascade)
+  message   String
+  unitId    String?
+  createdAt DateTime @default(now())
+}

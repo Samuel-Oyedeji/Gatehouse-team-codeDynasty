@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SectionHeader } from "@/components/gatehouse/section-header";
+import { useGatehouse } from "@/lib/store";
+import { updateEstateFn, updateFeeStructureFn } from "@/lib/api";
+import { getQueryClient } from "@/lib/query-client";
 import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,6 +20,8 @@ export const Route = createFileRoute("/app/settings")({
 });
 
 function SettingsPage() {
+  const { estate, allocationRule } = useGatehouse();
+
   return (
     <>
       <SectionHeader title="Settings" />
@@ -30,42 +36,18 @@ function SettingsPage() {
         </TabsList>
 
         <TabsContent value="profile" className="mt-4">
-          <Card className="p-6 max-w-xl space-y-4">
-            <Field label="Estate name" defaultValue="Maple Court" />
-            <Field label="Address" defaultValue="Plot 14 Admiralty Way" />
-            <Field label="City / State" defaultValue="Lekki, Lagos" />
-            <Button onClick={() => toast.success("Estate details saved")}>Save changes</Button>
-          </Card>
+          <EstateTab
+            key={estate.id}
+            initial={{ name: estate.name, address: estate.address, city: estate.city }}
+          />
         </TabsContent>
 
         <TabsContent value="fees" className="mt-4">
-          <Card className="p-6 max-w-xl space-y-4">
-            <Field label="Service charge amount (₦)" defaultValue="45000" type="number" />
-            <div>
-              <Label>Cadence</Label>
-              <Select defaultValue="quarterly">
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="quarterly">Quarterly</SelectItem>
-                  <SelectItem value="annually">Annually</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={() => toast.success("Fee structure updated")}>Save</Button>
-          </Card>
+          <FeesTab />
         </TabsContent>
 
         <TabsContent value="rules" className="mt-4">
-          <Card className="p-6 max-w-xl">
-            <Label className="mb-3 block">When a payment arrives and the unit owes more than one thing, apply it…</Label>
-            <RadioGroup defaultValue="oldest" className="space-y-3">
-              <RadioOption value="oldest" title="Oldest charge first" desc="Clears the most overdue item before newer ones. Recommended." />
-              <RadioOption value="dues" title="Dues before levies" desc="Always settle the recurring service charge first, then one-off levies." />
-              <RadioOption value="manual" title="I will choose each time" desc="Show me a small allocation prompt for every payment." />
-            </RadioGroup>
-            <Button className="mt-4" onClick={() => toast.success("Allocation rule saved")}>Save</Button>
-          </Card>
+          <RulesTab key={allocationRule} initial={allocationRule} />
         </TabsContent>
 
         <TabsContent value="notif" className="mt-4">
@@ -89,10 +71,13 @@ function SettingsPage() {
         <TabsContent value="team" className="mt-4">
           <Card className="p-6 max-w-xl space-y-4">
             <div className="text-sm">
-              <div className="font-medium">Adaeze Okafor</div>
+              <div className="font-medium">Estate treasurer</div>
               <div className="text-muted-foreground">Treasurer · you</div>
             </div>
-            <Field label="Invite a co-manager by email" placeholder="name@email.com" />
+            <div>
+              <Label>Invite a co-manager by email</Label>
+              <Input placeholder="name@email.com" />
+            </div>
             <Button onClick={() => toast.success("Invitation sent")}>Send invite</Button>
           </Card>
         </TabsContent>
@@ -103,7 +88,7 @@ function SettingsPage() {
               <CheckCircle2 className="text-brand h-6 w-6" />
               <div>
                 <div className="font-medium">Connected</div>
-                <div className="text-sm text-muted-foreground">Payments settle directly into Maple Court's Nomba business account.</div>
+                <div className="text-sm text-muted-foreground">Payments settle directly into {estate.name}'s Nomba business account.</div>
               </div>
             </div>
             <Button variant="outline" className="mt-4" onClick={() => toast("Manage connection in Nomba dashboard")}>Manage connection</Button>
@@ -114,12 +99,92 @@ function SettingsPage() {
   );
 }
 
-function Field({ label, ...rest }: { label: string } & React.ComponentProps<typeof Input>) {
+function EstateTab({ initial }: { initial: { name: string; address: string; city: string } }) {
+  const [name, setName] = useState(initial.name);
+  const [address, setAddress] = useState(initial.address);
+  const [city, setCity] = useState(initial.city);
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    try {
+      await updateEstateFn({ data: { name, address, city } });
+      await getQueryClient().invalidateQueries();
+      toast.success("Estate details saved");
+    } catch {
+      toast.error("Could not save");
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <div>
-      <Label>{label}</Label>
-      <Input {...rest} />
-    </div>
+    <Card className="p-6 max-w-xl space-y-4">
+      <div><Label>Estate name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
+      <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+      <div><Label>City / State</Label><Input value={city} onChange={(e) => setCity(e.target.value)} /></div>
+      <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save changes"}</Button>
+    </Card>
+  );
+}
+
+function FeesTab() {
+  const [amount, setAmount] = useState(45000);
+  const [cadence, setCadence] = useState("quarterly");
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    try {
+      await updateFeeStructureFn({ data: { serviceChargeNaira: amount, serviceChargeCadence: cadence } });
+      await getQueryClient().invalidateQueries();
+      toast.success("Fee structure updated");
+    } catch {
+      toast.error("Could not save");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Card className="p-6 max-w-xl space-y-4">
+      <div><Label>Service charge amount (₦)</Label><Input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
+      <div>
+        <Label>Cadence</Label>
+        <Select value={cadence} onValueChange={setCadence}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="monthly">Monthly</SelectItem>
+            <SelectItem value="quarterly">Quarterly</SelectItem>
+            <SelectItem value="annually">Annually</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+    </Card>
+  );
+}
+
+function RulesTab({ initial }: { initial: "OLDEST_FIRST" | "DUES_FIRST" }) {
+  const [value, setValue] = useState(initial === "DUES_FIRST" ? "dues" : "oldest");
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    try {
+      await updateFeeStructureFn({ data: { allocationRule: value === "dues" ? "DUES_FIRST" : "OLDEST_FIRST" } });
+      await getQueryClient().invalidateQueries();
+      toast.success("Allocation rule saved");
+    } catch {
+      toast.error("Could not save");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Card className="p-6 max-w-xl">
+      <Label className="mb-3 block">When a payment arrives and the unit owes more than one thing, apply it…</Label>
+      <RadioGroup value={value} onValueChange={setValue} className="space-y-3">
+        <RadioOption value="oldest" title="Oldest charge first" desc="Clears the most overdue item before newer ones. Recommended." />
+        <RadioOption value="dues" title="Dues before levies" desc="Always settle the recurring service charge first, then one-off levies." />
+      </RadioGroup>
+      <Button className="mt-4" onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+    </Card>
   );
 }
 

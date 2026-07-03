@@ -24,6 +24,8 @@ import { Route as AppPaymentsRouteImport } from './routes/app.payments'
 import { Route as AppExceptionsRouteImport } from './routes/app.exceptions'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppBillingRouteImport } from './routes/app.billing'
+import { Route as ApiStreamRouteImport } from './routes/api/stream'
+import { Route as ApiWebhooksNombaRouteImport } from './routes/api/webhooks/nomba'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -100,6 +102,16 @@ const AppBillingRoute = AppBillingRouteImport.update({
   path: '/billing',
   getParentRoute: () => AppRoute,
 } as any)
+const ApiStreamRoute = ApiStreamRouteImport.update({
+  id: '/api/stream',
+  path: '/api/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksNombaRoute = ApiWebhooksNombaRouteImport.update({
+  id: '/api/webhooks/nomba',
+  path: '/api/webhooks/nomba',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -107,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/api/stream': typeof ApiStreamRoute
   '/app/billing': typeof AppBillingRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/exceptions': typeof AppExceptionsRoute
@@ -117,12 +130,14 @@ export interface FileRoutesByFullPath {
   '/app/vendors': typeof AppVendorsRoute
   '/r/$token': typeof RTokenRoute
   '/app/': typeof AppIndexRoute
+  '/api/webhooks/nomba': typeof ApiWebhooksNombaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/api/stream': typeof ApiStreamRoute
   '/app/billing': typeof AppBillingRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/exceptions': typeof AppExceptionsRoute
@@ -133,6 +148,7 @@ export interface FileRoutesByTo {
   '/app/vendors': typeof AppVendorsRoute
   '/r/$token': typeof RTokenRoute
   '/app': typeof AppIndexRoute
+  '/api/webhooks/nomba': typeof ApiWebhooksNombaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -141,6 +157,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/api/stream': typeof ApiStreamRoute
   '/app/billing': typeof AppBillingRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/exceptions': typeof AppExceptionsRoute
@@ -151,6 +168,7 @@ export interface FileRoutesById {
   '/app/vendors': typeof AppVendorsRoute
   '/r/$token': typeof RTokenRoute
   '/app/': typeof AppIndexRoute
+  '/api/webhooks/nomba': typeof ApiWebhooksNombaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -160,6 +178,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/api/stream'
     | '/app/billing'
     | '/app/dashboard'
     | '/app/exceptions'
@@ -170,12 +189,14 @@ export interface FileRouteTypes {
     | '/app/vendors'
     | '/r/$token'
     | '/app/'
+    | '/api/webhooks/nomba'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/api/stream'
     | '/app/billing'
     | '/app/dashboard'
     | '/app/exceptions'
@@ -186,6 +207,7 @@ export interface FileRouteTypes {
     | '/app/vendors'
     | '/r/$token'
     | '/app'
+    | '/api/webhooks/nomba'
   id:
     | '__root__'
     | '/'
@@ -193,6 +215,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/api/stream'
     | '/app/billing'
     | '/app/dashboard'
     | '/app/exceptions'
@@ -203,6 +226,7 @@ export interface FileRouteTypes {
     | '/app/vendors'
     | '/r/$token'
     | '/app/'
+    | '/api/webhooks/nomba'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -211,7 +235,9 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   SignupRoute: typeof SignupRoute
+  ApiStreamRoute: typeof ApiStreamRoute
   RTokenRoute: typeof RTokenRoute
+  ApiWebhooksNombaRoute: typeof ApiWebhooksNombaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -321,6 +347,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppBillingRouteImport
       parentRoute: typeof AppRoute
     }
+    '/api/stream': {
+      id: '/api/stream'
+      path: '/api/stream'
+      fullPath: '/api/stream'
+      preLoaderRoute: typeof ApiStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/nomba': {
+      id: '/api/webhooks/nomba'
+      path: '/api/webhooks/nomba'
+      fullPath: '/api/webhooks/nomba'
+      preLoaderRoute: typeof ApiWebhooksNombaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -356,7 +396,9 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   SignupRoute: SignupRoute,
+  ApiStreamRoute: ApiStreamRoute,
   RTokenRoute: RTokenRoute,
+  ApiWebhooksNombaRoute: ApiWebhooksNombaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

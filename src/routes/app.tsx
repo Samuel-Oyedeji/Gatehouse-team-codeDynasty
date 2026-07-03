@@ -1,11 +1,19 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, Home, Receipt, ArrowLeftRight, AlertTriangle, Wrench, FileBarChart, Settings as SettingsIcon } from "lucide-react";
 import { useGatehouse } from "@/lib/store";
+import { fetchCurrentUser } from "@/lib/api";
+import { useLiveUpdates } from "@/lib/use-live-updates";
 import { SimulatePayment } from "@/components/gatehouse/simulate-payment";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import markAsset from "@/assets/gatehouse-mark.jpeg";
 
 export const Route = createFileRoute("/app")({
+  beforeLoad: async () => {
+    const user = await fetchCurrentUser();
+    if (!user) throw redirect({ to: "/login" });
+    if (!user.onboarded) throw redirect({ to: "/onboarding" });
+    return { user };
+  },
   component: AppShell,
 });
 
@@ -21,6 +29,7 @@ const NAV = [
 ] as const;
 
 function AppShell() {
+  useLiveUpdates();
   const { estate, cycle, exceptions } = useGatehouse();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
