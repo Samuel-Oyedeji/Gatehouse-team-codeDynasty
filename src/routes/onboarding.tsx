@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,13 +7,23 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { AccountNumber } from "@/components/gatehouse/account-number";
-import { CheckCircle2, Upload, Plus, Sparkles } from "lucide-react";
+import { CheckCircle2, Upload, Plus, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
-import { createEstateFn, createFeesFn, provisionUnitsFn } from "@/lib/api";
+import { createEstateFn, createFeesFn, fetchCurrentUser, fetchOnboardingState, provisionUnitsFn } from "@/lib/api";
 import { getQueryClient } from "@/lib/query-client";
 import markAsset from "@/assets/gatehouse-mark.jpeg";
 
 export const Route = createFileRoute("/onboarding")({
+  beforeLoad: async () => {
+    // Auth is a client-side JWT (localStorage), so gate on the client only; the
+    // server render falls through and the client re-checks on hydration.
+    if (typeof window === "undefined") return;
+    const user = await fetchCurrentUser();
+    if (!user) throw redirect({ to: "/login" });
+    // Already onboarded managers must not re-enter the wizard — it would re-show
+    // step 1 and re-trigger the duplicate-estate error.
+    if (user.onboarded) throw redirect({ to: "/app/dashboard" });
+  },
   component: OnboardingPage,
 });
 
@@ -26,16 +36,52 @@ interface Draft {
 }
 
 function OnboardingPage() {
-  const [step, setStep] = useState(1);
+  // Null until we've resolved backend progress, so a refresh resumes at the right
+  // step instead of flashing step 1.
+  const [step, setStep] = useState<number | null>(null);
   const nav = useNavigate();
   const total = 4;
   const [draft, setDraft] = useState<Draft>({
     unitCount: 60,
     serviceCharge: 45000,
     cadence: "quarterly",
-    levies: [{ name: "Generator repair levy", amount: "10000" }],
+    levies: [],
     accounts: [],
   });
+
+  useEffect(() => {
+    let active = true;
+    fetchOnboardingState()
+      .then((s) => {
+        if (!active) return;
+        if (s.estate) {
+          const units = s.estate.units;
+          setDraft((d) => ({ ...d, unitCount: units }));
+        }
+        setStep(s.step);
+      })
+      .catch(() => {
+        // If progress can't be loaded, fall back to a fresh wizard.
+        if (active) setStep(1);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (step === null) {
+    return (
+      <div className="min-h-screen bg-canvas grid place-items-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative grid place-items-center">
+            <div className="h-14 w-14 rounded-full border-2 border-brand/20 border-t-brand animate-spin" />
+            <img src={markAsset} alt="Gatehouse logo" className="absolute h-7 w-7 object-contain" />
+          </div>
+          <div className="text-sm text-muted-foreground">Loading your onboarding…</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -79,9 +125,9 @@ function StepCard({ title, sub, children }: { title: string; sub: string; childr
 }
 
 function StepEstate({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draft) => void; next: () => void }) {
-  const [name, setName] = useState("Maple Court");
-  const [address, setAddress] = useState("Plot 14 Admiralty Way");
-  const [city, setCity] = useState("Lekki, Lagos");
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
   const [count, setCount] = useState(draft.unitCount);
   const [busy, setBusy] = useState(false);
 
@@ -99,11 +145,11 @@ function StepEstate({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Dra
 
   return (
     <StepCard title="Create your estate" sub="Tell us about the community you manage.">
-      <div><Label>Estate name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
-      <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
+      <div><Label>Estate name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Maple Court" /></div>
+      <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Plot 14 Admiralty Way" /></div>
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>City / State</Label><Input value={city} onChange={(e) => setCity(e.target.value)} /></div>
-        <div><Label>Number of units</Label><Input type="number" value={count} onChange={(e) => setCount(Number(e.target.value))} /></div>
+        <div><Label>City / State</Label><Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Lekki, Lagos" /></div>
+        <div><Label>Number of units</Label><Input type="number" value={count} onChange={(e) => setCount(Number(e.target.value))} placeholder="60" /></div>
       </div>
       <Button onClick={onContinue} className="w-full" disabled={busy}>{busy ? "Saving…" : "Continue"}</Button>
     </StepCard>
@@ -111,23 +157,23 @@ function StepEstate({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Dra
 }
 
 function StepNomba({ next }: { next: () => void }) {
-  const [connected, setConnected] = useState(false);
+  const [created, setCreated] = useState(false);
   return (
-    <StepCard title="Connect Nomba" sub="Gatehouse connects to your estate's Nomba business account so payments settle directly there.">
-      {!connected ? (
+    <StepCard title="Create your Nomba subaccount" sub="Gatehouse creates a dedicated Nomba subaccount for your estate, where every unit payment settles.">
+      {!created ? (
         <>
           <div className="rounded-lg border border-border bg-secondary p-5">
-            <div className="text-sm text-ink">Your committee keeps control of the funds. Gatehouse only reads incoming payments so it can attribute them to the right unit.</div>
+            <div className="text-sm text-ink">The subaccount sits under your estate's Nomba business account, so your committee keeps control of the funds. Gatehouse only reads incoming payments so it can attribute them to the right unit.</div>
           </div>
-          <Button onClick={() => { setConnected(true); toast.success("Nomba account connected"); }} className="w-full">Connect Nomba account</Button>
+          <Button onClick={() => { setCreated(true); toast.success("Nomba subaccount created"); }} className="w-full">Create subaccount</Button>
         </>
       ) : (
         <>
           <div className="rounded-lg bg-brand-tint border border-[#A7F3D0] p-5 flex items-start gap-3">
             <CheckCircle2 className="text-brand h-5 w-5 mt-0.5" />
             <div>
-              <div className="font-medium text-ink">Connected.</div>
-              <div className="text-sm text-muted-foreground">Payments will settle into your estate's account.</div>
+              <div className="font-medium text-ink">Subaccount created.</div>
+              <div className="text-sm text-muted-foreground">Payments will settle into your estate's Nomba subaccount.</div>
             </div>
           </div>
           <Button onClick={next} className="w-full">Continue</Button>
@@ -164,7 +210,7 @@ function StepFees({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draft
   return (
     <StepCard title="Set the fee structure" sub="What residents pay you, and how often.">
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>Service charge (₦)</Label><Input type="number" value={serviceCharge} onChange={(e) => setServiceCharge(Number(e.target.value))} /></div>
+        <div><Label>Service charge (₦)</Label><Input type="number" value={serviceCharge} onChange={(e) => setServiceCharge(Number(e.target.value))} placeholder="45000" /></div>
         <div>
           <Label>Cadence</Label>
           <Select value={cadence} onValueChange={setCadence}>
@@ -197,38 +243,61 @@ function StepFees({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draft
   );
 }
 
-function makeUnitRows(count: number) {
-  const blocks = ["A", "B", "C", "D"];
-  const perBlock = Math.ceil(count / blocks.length);
-  const rows: { label: string; block: string; occupantName: string }[] = [];
-  for (let i = 0; i < count; i++) {
-    const block = blocks[Math.floor(i / perBlock)] ?? blocks[blocks.length - 1];
-    const num = (i % perBlock) + 1;
-    const label = `${block}${num}`;
-    rows.push({ label, block, occupantName: `Resident ${label}` });
-  }
-  return rows;
+// Derive the block from a unit label (e.g. "A1" → "A") since the backend stores
+// block and unitName separately. Falls back to "A" when the label has no prefix.
+function blockFromLabel(label: string) {
+  const match = label.trim().match(/^[A-Za-z]+/);
+  return (match ? match[0] : "A").toUpperCase();
+}
+
+function downloadUnitsTemplate() {
+  const csv = "Unit Label,Occupant Name,Phone Number\nA1,Jane Doe,08012345678\nA2,John Smith,08087654321\n";
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "units-template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+interface ManualRow {
+  label: string;
+  occupant: string;
+  phone: string;
 }
 
 function StepUnits({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draft) => void; next: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [rows, setRows] = useState<ManualRow[]>([{ label: "", occupant: "", phone: "" }]);
   const done = draft.accounts.length > 0;
+  const validRows = rows.filter((r) => r.label.trim() && r.occupant.trim());
 
-  async function generate() {
+  async function provision(units: { label: string; block: string; occupantName: string; occupantPhone?: string }[]) {
     setBusy(true);
     try {
-      const rows = makeUnitRows(draft.unitCount);
-      const provisioned = await provisionUnitsFn({ data: { units: rows } });
+      const provisioned = await provisionUnitsFn({ data: { units } });
       setDraft({
         ...draft,
         accounts: provisioned.map((p) => ({ label: p.label, accountNumber: p.accountNumber })),
       });
-      toast.success(`${provisioned.length} unit accounts provisioned`);
+      toast.success(`${provisioned.length} unit account${provisioned.length === 1 ? "" : "s"} provisioned`);
     } catch {
       toast.error("Could not provision unit accounts");
     } finally {
       setBusy(false);
     }
+  }
+
+  function generate() {
+    if (validRows.length === 0) return;
+    void provision(
+      validRows.map((r) => ({
+        label: r.label.trim(),
+        block: blockFromLabel(r.label),
+        occupantName: r.occupant.trim(),
+        occupantPhone: r.phone.trim() || undefined,
+      })),
+    );
   }
 
   return (
@@ -238,12 +307,34 @@ function StepUnits({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draf
           <div className="rounded-xl border-2 border-dashed border-border p-8 text-center bg-secondary">
             <Upload className="mx-auto h-7 w-7 text-muted-foreground" />
             <div className="mt-3 font-medium">Drop your CSV here</div>
-            <div className="mt-1 text-sm text-muted-foreground">Columns: unit label, occupant name, phone, owner or tenant</div>
-            <Button variant="outline" size="sm" className="mt-4">Download template</Button>
+            <div className="mt-1 text-sm text-muted-foreground">Columns: unit label, occupant name, phone number</div>
+            <Button variant="outline" size="sm" className="mt-4" onClick={downloadUnitsTemplate}>Download template</Button>
           </div>
-          <div className="text-xs text-center text-muted-foreground">— or generate them —</div>
-          <Button onClick={generate} className="w-full" disabled={busy}>
-            {busy ? "Provisioning accounts…" : `Generate ${draft.unitCount} unit accounts`}
+          <div className="text-xs text-center text-muted-foreground">— or add one at a time —</div>
+          <div className="space-y-2">
+            {rows.map((r, i) => (
+              <div key={i} className="grid grid-cols-[80px_1fr_140px_auto] gap-2">
+                <Input placeholder="A1" value={r.label} onChange={(e) => setRows(rows.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
+                <Input placeholder="Occupant" value={r.occupant} onChange={(e) => setRows(rows.map((x, j) => j === i ? { ...x, occupant: e.target.value } : x))} />
+                <Input placeholder="Phone" value={r.phone} onChange={(e) => setRows(rows.map((x, j) => j === i ? { ...x, phone: e.target.value } : x))} />
+                {i === rows.length - 1 ? (
+                  <Button type="button" variant="outline" size="icon" onClick={() => setRows([...rows, { label: "", occupant: "", phone: "" }])} aria-label="Add another unit">
+                    <Plus size={16} />
+                  </Button>
+                ) : (
+                  <Button type="button" variant="ghost" size="icon" onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label="Remove unit">
+                    <X size={16} />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          <Button onClick={generate} className="w-full" disabled={busy || validRows.length === 0}>
+            {busy
+              ? "Provisioning accounts…"
+              : validRows.length === 0
+                ? "Generate unit accounts"
+                : `Generate ${validRows.length} unit account${validRows.length === 1 ? "" : "s"}`}
           </Button>
         </>
       ) : (

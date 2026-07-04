@@ -8,7 +8,7 @@ import { store, useGatehouse } from "@/lib/store";
 
 export function SimulatePayment() {
   const [open, setOpen] = useState(false);
-  const [unit, setUnit] = useState("B4");
+  const [unit, setUnit] = useState("");
   const [amount, setAmount] = useState("45000");
   const { units } = useGatehouse();
 

@@ -112,6 +112,22 @@ export async function createLevyFn({ data }: { data: { name: string; amountNaira
 }
 
 // ---------- onboarding ----------
+export interface OnboardingState {
+  step: number;
+  estate: { id: string; name: string; address: string; city: string; state: string; units: number } | null;
+  hasFees: boolean;
+  hasUnits: boolean;
+}
+
+// Backend-derived onboarding progress, so a tab refresh resumes at the right step
+// instead of restarting the wizard. Restores the estate id that later fee/unit
+// calls read via getEstateId(), even if localStorage was cleared.
+export async function fetchOnboardingState() {
+  const res = await request<OnboardingState>("GET", "/onboarding/state");
+  if (res.estate) setEstateId(res.estate.id);
+  return res;
+}
+
 export async function createEstateFn({ data }: { data: { name: string; address: string; city: string; state?: string; units: number } }) {
   const estate = await request<{ id: string }>("POST", "/onboarding/estate", {
     name: data.name,
@@ -142,6 +158,7 @@ export async function provisionUnitsFn({
         block: u.block,
         unitName: u.label,
         occupant: u.occupantName,
+        phone: u.occupantPhone,
         email: `${u.occupantName.split(" ")[0].toLowerCase()}@example.ng`,
         type: u.occupancyType === "TENANT" ? "tenant" : "owner",
       })),
