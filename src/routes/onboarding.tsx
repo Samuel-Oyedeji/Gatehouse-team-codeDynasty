@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { AccountNumber } from "@/components/gatehouse/account-number";
 import { CheckCircle2, Upload, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { updateEstateFn, updateFeeStructureFn, provisionUnitsFn, createLevyFn } from "@/lib/api";
+import { createEstateFn, createFeesFn, provisionUnitsFn } from "@/lib/api";
 import { getQueryClient } from "@/lib/query-client";
 import markAsset from "@/assets/gatehouse-mark.jpeg";
 
@@ -88,11 +88,11 @@ function StepEstate({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Dra
   async function onContinue() {
     setBusy(true);
     try {
-      await updateEstateFn({ data: { name, address, city, cycleLabel: "Q3 2026" } });
+      await createEstateFn({ data: { name, address, city, units: count } });
       setDraft({ ...draft, unitCount: count });
       next();
     } catch {
-      toast.error("Could not save estate details");
+      toast.error("Could not create estate");
       setBusy(false);
     }
   }
@@ -146,7 +146,13 @@ function StepFees({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draft
   async function onContinue() {
     setBusy(true);
     try {
-      await updateFeeStructureFn({ data: { serviceChargeNaira: serviceCharge, serviceChargeCadence: cadence } });
+      const fees = [
+        { name: "Service charge", type: "service_fee" as const, amount: serviceCharge, frequency: cadence },
+        ...levies
+          .filter((l) => l.name.trim() && Number(l.amount) > 0)
+          .map((l) => ({ name: l.name.trim(), type: "levy" as const, amount: Number(l.amount), frequency: "one_time" })),
+      ];
+      await createFeesFn({ data: { fees } });
       setDraft({ ...draft, serviceCharge, cadence, levies });
       next();
     } catch {
@@ -213,13 +219,6 @@ function StepUnits({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draf
     try {
       const rows = makeUnitRows(draft.unitCount);
       const provisioned = await provisionUnitsFn({ data: { units: rows } });
-      // Create any levies now that units exist.
-      for (const l of draft.levies) {
-        const amount = Number(l.amount);
-        if (l.name.trim() && amount > 0) {
-          await createLevyFn({ data: { name: l.name.trim(), amountNaira: amount, dueDate: Date.now() + 12 * 86_400_000, requireExact: true } });
-        }
-      }
       setDraft({
         ...draft,
         accounts: provisioned.map((p) => ({ label: p.label, accountNumber: p.accountNumber })),

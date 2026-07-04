@@ -9,10 +9,12 @@ import markAsset from "@/assets/gatehouse-mark.jpeg";
 
 export const Route = createFileRoute("/app")({
   beforeLoad: async () => {
+    // Auth is a client-side JWT (localStorage), so gate on the client only; the
+    // server render falls through and the client re-checks on hydration.
+    if (typeof window === "undefined") return;
     const user = await fetchCurrentUser();
     if (!user) throw redirect({ to: "/login" });
     if (!user.onboarded) throw redirect({ to: "/onboarding" });
-    return { user };
   },
   component: AppShell,
 });

@@ -1,264 +1,178 @@
-// Server-function API surface called by the client store and pages. Each handler
-// runs server-side only; the TanStack Start plugin strips these bodies (and their
-// server-only imports) from the client bundle, replacing calls with RPC.
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
+// API surface for the frontend, backed by the NestJS backend over HTTP. Each
+// function keeps the name and `{ data }` call shape the pages/store already use,
+// so store.ts and the route components are untouched by the repoint.
+import { request, setToken, clearAuth, getEstateId, setEstateId } from "./http";
+import type { State, Unit } from "./types";
 
-import { getEstateState } from "./server/state";
-import { getPublicStatement } from "./server/public";
-import { getReports } from "./server/reports";
-import { requireEstateId, getCurrentUser } from "./server/session";
-import { ingestInboundPayment } from "./server/ingest";
-import { resolveException, type ResolveAction } from "./server/exceptions";
-import { payVendor, addVendor } from "./server/payouts";
-import { createBillingRun, createLevy } from "./server/billing";
-import { provisionUnits } from "./server/provisioning";
-import { updateEstateDetails, updateFeeStructure } from "./server/estate";
-import { signup, login, logout } from "./server/auth";
-import { resetDemo, seedDemoEstate } from "./server/seed-data";
-import { prisma } from "./server/db";
-import { nairaToKobo } from "./money";
-import { randomUUID } from "node:crypto";
-
-// ---------- reads ----------
-export const fetchEstateState = createServerFn({ method: "GET" }).handler(async () => {
-  const estateId = await requireEstateId();
-  return getEstateState(estateId);
-});
-
-export const fetchReports = createServerFn({ method: "GET" }).handler(async () => {
-  const estateId = await requireEstateId();
-  return getReports(estateId);
-});
-
-export const fetchCurrentUser = createServerFn({ method: "GET" }).handler(async () => {
-  const user = await getCurrentUser();
-  if (!user) return null;
-  const unitCount = await prisma.unit.count({ where: { estateId: user.estateId } });
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    estateId: user.estateId,
-    estateName: user.estate.name,
-    onboarded: unitCount > 0,
+export interface PublicStatement {
+  estate: { name: string; city: string };
+  unit: Unit;
+  accountNumber: string;
+  bankName: string;
+  transparency: {
+    collected: number;
+    spent: number;
+    balance: number;
+    byCategory: { category: string; amount: number }[];
   };
-});
-
-export const fetchPublicStatement = createServerFn({ method: "GET" })
-  .validator((d: unknown) => z.object({ token: z.string() }).parse(d))
-  .handler(async ({ data }) => getPublicStatement(data.token));
-
-// ---------- payments ----------
-export const simulatePayment = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z.object({ unitLabel: z.string().trim(), amountNaira: z.number().positive() }).parse(d),
-  )
-  .handler(async ({ data }) => {
-    const estateId = await requireEstateId();
-    const unit = data.unitLabel
-      ? await prisma.unit.findFirst({
-          where: { estateId, label: { equals: data.unitLabel, mode: "insensitive" } },
-          include: { virtualAccount: true },
-        })
-      : null;
-    return ingestInboundPayment({
-      nombaTxnRef: `sim-${randomUUID()}`,
-      accountRef: unit?.virtualAccount?.nombaAccountRef ?? null,
-      amountKobo: nairaToKobo(data.amountNaira),
-      sourceName: unit?.occupantName ?? "Unknown sender",
-      receivedAt: Date.now(),
-      estateIdHint: estateId,
-      rawPayload: { channel: "simulate", unitLabel: data.unitLabel },
-    });
-  });
-
-export const recordManualPayment = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z.object({ unitId: z.string(), amountNaira: z.number().positive(), sender: z.string().optional() }).parse(d),
-  )
-  .handler(async ({ data }) => {
-    const estateId = await requireEstateId();
-    const unit = await prisma.unit.findFirstOrThrow({
-      where: { id: data.unitId, estateId },
-      include: { virtualAccount: true },
-    });
-    return ingestInboundPayment({
-      nombaTxnRef: `manual-${randomUUID()}`,
-      accountRef: unit.virtualAccount?.nombaAccountRef ?? null,
-      amountKobo: nairaToKobo(data.amountNaira),
-      sourceName: data.sender || unit.occupantName,
-      receivedAt: Date.now(),
-      status: "MANUAL",
-      estateIdHint: estateId,
-      rawPayload: { channel: "manual" },
-    });
-  });
-
-// ---------- exceptions ----------
-export const resolveExceptionFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z
-      .object({
-        exceptionId: z.string(),
-        action: z.enum(["credit", "refund", "duplicate-hold", "duplicate-keep", "reassign", "attribute"]),
-        targetUnitId: z.string().optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data }) => {
-    await requireEstateId();
-    return resolveException(data.exceptionId, data.action as ResolveAction, data.targetUnitId);
-  });
-
-// ---------- vendors / payouts ----------
-export const payVendorFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z.object({ vendorId: z.string(), amountNaira: z.number().positive(), note: z.string() }).parse(d),
-  )
-  .handler(async ({ data }) => {
-    const estateId = await requireEstateId();
-    return payVendor(estateId, data.vendorId, nairaToKobo(data.amountNaira), data.note);
-  });
-
-export const addVendorFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z
-      .object({
-        name: z.string(),
-        category: z.string(),
-        bankName: z.string(),
-        bankCode: z.string().optional(),
-        accountNumber: z.string(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data }) => {
-    const estateId = await requireEstateId();
-    return addVendor(estateId, data);
-  });
-
-// ---------- billing ----------
-export const createBillingRunFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z
-      .object({
-        cycleLabel: z.string(),
-        chargeAmountNaira: z.number().positive(),
-        dueDate: z.number(),
-        unitIds: z.array(z.string()).optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data }) => {
-    const estateId = await requireEstateId();
-    return createBillingRun(estateId, {
-      cycleLabel: data.cycleLabel,
-      chargeAmountKobo: nairaToKobo(data.chargeAmountNaira),
-      dueDate: data.dueDate,
-      unitIds: data.unitIds,
-    });
-  });
-
-export const createLevyFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z
-      .object({
-        name: z.string(),
-        amountNaira: z.number().positive(),
-        dueDate: z.number(),
-        requireExact: z.boolean().optional(),
-        unitIds: z.array(z.string()).optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data }) => {
-    const estateId = await requireEstateId();
-    return createLevy(estateId, {
-      name: data.name,
-      amountKobo: nairaToKobo(data.amountNaira),
-      dueDate: data.dueDate,
-      requireExact: data.requireExact,
-      unitIds: data.unitIds,
-    });
-  });
-
-// ---------- onboarding / provisioning ----------
-export const provisionUnitsFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z
-      .object({
-        units: z.array(
-          z.object({
-            label: z.string(),
-            block: z.string(),
-            occupantName: z.string(),
-            occupantPhone: z.string().optional(),
-            occupancyType: z.enum(["OWNER", "TENANT"]).optional(),
-          }),
-        ),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data }) => {
-    const estateId = await requireEstateId();
-    return provisionUnits(estateId, data.units);
-  });
-
-export const updateEstateFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z.object({ name: z.string().optional(), address: z.string().optional(), city: z.string().optional(), cycleLabel: z.string().optional() }).parse(d),
-  )
-  .handler(async ({ data }) => {
-    const estateId = await requireEstateId();
-    return updateEstateDetails(estateId, data);
-  });
-
-export const updateFeeStructureFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z
-      .object({
-        serviceChargeNaira: z.number().optional(),
-        serviceChargeCadence: z.string().optional(),
-        allocationRule: z.enum(["OLDEST_FIRST", "DUES_FIRST"]).optional(),
-        autoCreditThresholdNaira: z.number().optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data }) => {
-    const estateId = await requireEstateId();
-    return updateFeeStructure(estateId, {
-      serviceChargeKobo: data.serviceChargeNaira != null ? nairaToKobo(data.serviceChargeNaira) : undefined,
-      serviceChargeCadence: data.serviceChargeCadence,
-      allocationRule: data.allocationRule,
-      autoCreditThresholdKobo: data.autoCreditThresholdNaira != null ? nairaToKobo(data.autoCreditThresholdNaira) : undefined,
-    });
-  });
+}
 
 // ---------- auth ----------
-export const signupFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) =>
-    z.object({ name: z.string(), email: z.string().email(), phone: z.string().optional(), password: z.string().min(6), estateName: z.string().optional() }).parse(d),
-  )
-  .handler(async ({ data }) => signup(data));
+export async function loginFn({ data }: { data: { email: string; password: string } }) {
+  const res = await request<{ manager: { id: string }; accessToken: string }>("POST", "/auth/login", data);
+  setToken(res.accessToken);
+  return res;
+}
 
-export const loginFn = createServerFn({ method: "POST" })
-  .validator((d: unknown) => z.object({ email: z.string().email(), password: z.string() }).parse(d))
-  .handler(async ({ data }) => login(data.email, data.password));
+export async function signupFn({ data }: { data: { name: string; email: string; phone?: string; password: string } }) {
+  const res = await request<{ manager: { id: string }; accessToken: string }>("POST", "/auth/register", {
+    fullName: data.name,
+    email: data.email,
+    phone: data.phone,
+    password: data.password,
+  });
+  setToken(res.accessToken);
+  return res;
+}
 
-export const logoutFn = createServerFn({ method: "POST" }).handler(async () => {
-  await logout();
+export async function logoutFn() {
+  clearAuth();
   return { ok: true };
-});
+}
+
+export async function fetchCurrentUser() {
+  try {
+    const res = await request<{
+      manager: { id: string; fullName: string; email: string } | null;
+      estates: { id: string; name: string; unitsCount: number }[];
+    }>("GET", "/auth/me");
+    if (!res.manager) return null;
+    const estate = res.estates[0];
+    if (estate) setEstateId(estate.id);
+    return {
+      id: res.manager.id,
+      name: res.manager.fullName,
+      email: res.manager.email,
+      estateId: estate?.id ?? null,
+      estateName: estate?.name ?? "",
+      onboarded: (estate?.unitsCount ?? 0) > 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ---------- reads ----------
+export async function fetchEstateState() {
+  const estateId = getEstateId();
+  if (!estateId) throw new Error("No estate selected");
+  return request<State>("GET", `/estate/${estateId}/state`);
+}
+
+export async function fetchReports() {
+  const estateId = getEstateId();
+  if (!estateId) throw new Error("No estate selected");
+  return request("GET", `/estate/${estateId}/reports`);
+}
+
+export async function fetchPublicStatement({ data }: { data: { token: string } }) {
+  return request<PublicStatement | null>("GET", `/public/${data.token}`);
+}
+
+// ---------- payments ----------
+export async function simulatePayment({ data }: { data: { unitLabel: string; amountNaira: number } }) {
+  return request("POST", "/payments/simulate", { estateId: getEstateId(), unitLabel: data.unitLabel, amountNaira: data.amountNaira });
+}
+
+export async function recordManualPayment({ data }: { data: { unitId: string; amountNaira: number; sender?: string } }) {
+  return request("POST", "/payments/manual", { estateId: getEstateId(), ...data });
+}
+
+// ---------- exceptions ----------
+export async function resolveExceptionFn({ data }: { data: { exceptionId: string; action: string; targetUnitId?: string } }) {
+  return request("POST", `/exceptions/${data.exceptionId}/resolve`, { action: data.action, targetUnitId: data.targetUnitId });
+}
+
+// ---------- vendors / payouts ----------
+export async function payVendorFn({ data }: { data: { vendorId: string; amountNaira: number; note: string } }) {
+  return request("POST", "/payouts", { estateId: getEstateId(), ...data });
+}
+
+export async function addVendorFn({ data }: { data: { name: string; category: string; bankName: string; bankCode?: string; accountNumber: string } }) {
+  return request("POST", "/vendors", { estateId: getEstateId(), ...data });
+}
+
+// ---------- billing ----------
+export async function createBillingRunFn({ data }: { data: { cycleLabel: string; chargeAmountNaira: number; dueDate: number; unitIds?: string[] } }) {
+  return request<{ unitsBilled: number }>("POST", "/billing/run", { estateId: getEstateId(), ...data });
+}
+
+export async function createLevyFn({ data }: { data: { name: string; amountNaira: number; dueDate: number; requireExact?: boolean; unitIds?: string[] } }) {
+  return request<{ unitsBilled: number }>("POST", "/billing/levy", { estateId: getEstateId(), ...data });
+}
+
+// ---------- onboarding ----------
+export async function createEstateFn({ data }: { data: { name: string; address: string; city: string; state?: string; units: number } }) {
+  const estate = await request<{ id: string }>("POST", "/onboarding/estate", {
+    name: data.name,
+    address: data.address,
+    city: data.city,
+    state: data.state || data.city,
+    units: data.units,
+  });
+  setEstateId(estate.id);
+  return estate;
+}
+
+export async function createFeesFn({ data }: { data: { fees: { name: string; type: "service_fee" | "levy"; amount: number; frequency: string }[] } }) {
+  return request("POST", "/onboarding/fee", { estateId: getEstateId(), fees: data.fees });
+}
+
+export async function provisionUnitsFn({
+  data,
+}: {
+  data: { units: { label: string; block: string; occupantName: string; occupantPhone?: string; occupancyType?: "OWNER" | "TENANT" }[] };
+}): Promise<{ label: string; accountNumber: string | null }[]> {
+  const res = await request<{ succeeded: { unit: { unitName: string }; account: { accountNumber: string } }[] }>(
+    "POST",
+    "/onboarding/unit",
+    {
+      estateId: getEstateId(),
+      units: data.units.map((u) => ({
+        block: u.block,
+        unitName: u.label,
+        occupant: u.occupantName,
+        email: `${u.occupantName.split(" ")[0].toLowerCase()}@example.ng`,
+        type: u.occupancyType === "TENANT" ? "tenant" : "owner",
+      })),
+    },
+  );
+  return res.succeeded.map((s) => ({ label: s.unit.unitName, accountNumber: s.account.accountNumber }));
+}
+
+// ---------- estate settings ----------
+export async function updateEstateFn({ data }: { data: { name?: string; address?: string; city?: string; cycleLabel?: string } }) {
+  return request("PATCH", `/estate/${getEstateId()}`, data);
+}
+
+export async function updateFeeStructureFn({
+  data,
+}: {
+  data: { serviceChargeNaira?: number; serviceChargeCadence?: string; allocationRule?: "OLDEST_FIRST" | "DUES_FIRST"; autoCreditThresholdNaira?: number };
+}) {
+  // Only the estate-level settings (allocation rule / threshold) have a backend
+  // update; the recurring service-charge amount is set via the next billing run.
+  if (data.allocationRule || data.autoCreditThresholdNaira != null) {
+    return request("PATCH", `/estate/${getEstateId()}`, {
+      allocationRule: data.allocationRule,
+      autoCreditThresholdNaira: data.autoCreditThresholdNaira,
+    });
+  }
+  return { ok: true };
+}
 
 // ---------- demo ----------
-export const resetDemoFn = createServerFn({ method: "POST" }).handler(async () => {
-  const estateId = await requireEstateId();
-  await resetDemo(estateId);
+export async function resetDemoFn() {
+  // No server-side reset endpoint; re-seed from the backend CLI instead.
   return { ok: true };
-});
-
-export const seedDemoFn = createServerFn({ method: "POST" }).handler(async () => {
-  const { estateId } = await seedDemoEstate();
-  return { estateId };
-});
+}
