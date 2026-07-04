@@ -1,5 +1,5 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -266,11 +266,43 @@ interface ManualRow {
   phone: string;
 }
 
+// Parse the units CSV (Unit Label, Occupant Name, Phone Number) into editable
+// rows. Skips a header line if present; tolerant of blank lines and trailing cols.
+function parseCsvToRows(text: string): ManualRow[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+  const startIdx = /label|occupant|phone|name/i.test(lines[0]) ? 1 : 0;
+  const rows: ManualRow[] = [];
+  for (const line of lines.slice(startIdx)) {
+    const [label = "", occupant = "", phone = ""] = line.split(",").map((c) => c.trim());
+    if (label || occupant || phone) rows.push({ label, occupant, phone });
+  }
+  return rows;
+}
+
 function StepUnits({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draft) => void; next: () => void }) {
   const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<ManualRow[]>([{ label: "", occupant: "", phone: "" }]);
+  const [dragging, setDragging] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const done = draft.accounts.length > 0;
   const validRows = rows.filter((r) => r.label.trim() && r.occupant.trim());
+
+  function loadFile(file: File | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const parsed = parseCsvToRows(String(reader.result ?? ""));
+      if (parsed.length === 0) {
+        toast.error("No units found in that CSV");
+        return;
+      }
+      setRows(parsed);
+      toast.success(`Loaded ${parsed.length} unit${parsed.length === 1 ? "" : "s"} — review and edit below`);
+    };
+    reader.onerror = () => toast.error("Could not read that file");
+    reader.readAsText(file);
+  }
 
   async function provision(units: { label: string; block: string; occupantName: string; occupantPhone?: string }[]) {
     setBusy(true);
@@ -304,11 +336,24 @@ function StepUnits({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draf
     <StepCard title="Add your units" sub="Each unit gets its own dedicated account number once added.">
       {!done ? (
         <>
-          <div className="rounded-xl border-2 border-dashed border-border p-8 text-center bg-secondary">
+          <div
+            onClick={() => fileRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); loadFile(e.dataTransfer.files[0]); }}
+            className={`rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition-colors ${dragging ? "border-brand bg-brand-tint" : "border-border bg-secondary"}`}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ""; }}
+            />
             <Upload className="mx-auto h-7 w-7 text-muted-foreground" />
-            <div className="mt-3 font-medium">Drop your CSV here</div>
+            <div className="mt-3 font-medium">Drop your CSV here, or click to browse</div>
             <div className="mt-1 text-sm text-muted-foreground">Columns: unit label, occupant name, phone number</div>
-            <Button variant="outline" size="sm" className="mt-4" onClick={downloadUnitsTemplate}>Download template</Button>
+            <Button variant="outline" size="sm" className="mt-4" onClick={(e) => { e.stopPropagation(); downloadUnitsTemplate(); }}>Download template</Button>
           </div>
           <div className="text-xs text-center text-muted-foreground">— or add one at a time —</div>
           <div className="space-y-2">

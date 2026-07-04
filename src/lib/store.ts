@@ -11,6 +11,10 @@ import {
   resolveExceptionFn,
   payVendorFn,
   resetDemoFn,
+  provisionUnitsFn,
+  createGroupFn,
+  deleteGroupFn,
+  assignUnitGroupFn,
 } from "./api";
 
 export * from "./types";
@@ -35,6 +39,7 @@ export const EMPTY_STATE: State = {
   billingRuns: [],
   levies: [],
   activity: [],
+  groups: [],
   recentlyChanged: {},
 };
 
@@ -64,6 +69,32 @@ export const store = {
   },
   async payVendor(vendorId: string, amountNaira: number, note: string) {
     await payVendorFn({ data: { vendorId, amountNaira, note } });
+    await refresh();
+  },
+  async addUnits(
+    units: {
+      label: string;
+      block: string;
+      occupantName: string;
+      occupantPhone?: string;
+      occupancyType?: "OWNER" | "TENANT";
+    }[],
+  ) {
+    const res = await provisionUnitsFn({ data: { units } });
+    await refresh();
+    return res;
+  },
+  async createGroup(name: string) {
+    const group = await createGroupFn({ data: { name } });
+    await refresh();
+    return group;
+  },
+  async deleteGroup(groupId: string) {
+    await deleteGroupFn({ data: { groupId } });
+    await refresh();
+  },
+  async assignUnitGroup(unitId: string, groupId: string | null) {
+    await assignUnitGroupFn({ data: { unitId, groupId } });
     await refresh();
   },
   async reset() {

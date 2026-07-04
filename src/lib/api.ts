@@ -88,6 +88,19 @@ export async function recordManualPayment({ data }: { data: { unitId: string; am
   return request("POST", "/payments/manual", { estateId: getEstateId(), ...data });
 }
 
+// ---------- unit groups ----------
+export async function createGroupFn({ data }: { data: { name: string } }) {
+  return request<{ id: string; name: string }>("POST", `/estate/${getEstateId()}/groups`, { name: data.name });
+}
+
+export async function deleteGroupFn({ data }: { data: { groupId: string } }) {
+  return request("DELETE", `/estate/${getEstateId()}/groups/${data.groupId}`);
+}
+
+export async function assignUnitGroupFn({ data }: { data: { unitId: string; groupId: string | null } }) {
+  return request("PATCH", `/estate/${getEstateId()}/units/${data.unitId}/group`, { groupId: data.groupId });
+}
+
 // ---------- exceptions ----------
 export async function resolveExceptionFn({ data }: { data: { exceptionId: string; action: string; targetUnitId?: string } }) {
   return request("POST", `/exceptions/${data.exceptionId}/resolve`, { action: data.action, targetUnitId: data.targetUnitId });
