@@ -76,6 +76,14 @@ export async function fetchCurrentUser() {
   }
 }
 
+// Mints a short-lived (60s), stream-scoped ticket to authenticate the SSE URL, so
+// the long-lived API JWT never lands in a query string (logs/history). See
+// use-live-updates.ts.
+export async function fetchStreamTicket(): Promise<string> {
+  const res = await request<{ ticket: string }>("GET", "/stream/ticket");
+  return res.ticket;
+}
+
 // ---------- reads ----------
 export async function fetchEstateState() {
   const estateId = getEstateId();
