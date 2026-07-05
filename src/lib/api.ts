@@ -2,6 +2,7 @@
 // function keeps the name and `{ data }` call shape the pages/store already use,
 // so store.ts and the route components are untouched by the repoint.
 import { request, setToken, clearAuth, getEstateId, setEstateId } from "./http";
+import { getQueryClient } from "./query-client";
 import type { State, Unit } from "./types";
 
 export interface PublicStatement {
@@ -36,7 +37,19 @@ export async function signupFn({ data }: { data: { name: string; email: string; 
 }
 
 export async function logoutFn() {
+  // Best-effort notify the server while the token is still present. The JWT is
+  // stateless (this endpoint is currently a no-op), but honoring the contract
+  // keeps logout correct if token revocation is ever added. A network error must
+  // never block the local teardown below.
+  try {
+    await request("POST", "/auth/logout");
+  } catch {
+    // ignore — we log out locally regardless
+  }
   clearAuth();
+  // Drop every cached query so the next (or unauthenticated) view can't read the
+  // previous session's estate data straight out of memory.
+  getQueryClient().clear();
   return { ok: true };
 }
 

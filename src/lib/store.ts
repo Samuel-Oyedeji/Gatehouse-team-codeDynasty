@@ -93,9 +93,28 @@ export const store = {
     await deleteGroupFn({ data: { groupId } });
     await refresh();
   },
+  // Optimistic: move the unit in the cache immediately so the tile jumps to its
+  // new group without waiting on the server. Reconcile with server truth on
+  // success; roll back to the snapshot and rethrow on failure so the caller can
+  // alert the user.
   async assignUnitGroup(unitId: string, groupId: string | null) {
-    await assignUnitGroupFn({ data: { unitId, groupId } });
-    await refresh();
+    const qc = getQueryClient();
+    const prevGroupId =
+      qc.getQueryData<State>(ESTATE_STATE_KEY)?.units.find((u) => u.id === unitId)?.groupId ?? null;
+    // Patch just this unit via the functional updater so a concurrent move of a
+    // different unit isn't clobbered by our optimistic write or rollback.
+    const setGroup = (gid: string | null) =>
+      qc.setQueryData<State>(ESTATE_STATE_KEY, (s) =>
+        s ? { ...s, units: s.units.map((u) => (u.id === unitId ? { ...u, groupId: gid } : u)) } : s,
+      );
+    setGroup(groupId);
+    try {
+      await assignUnitGroupFn({ data: { unitId, groupId } });
+      await refresh();
+    } catch (e) {
+      setGroup(prevGroupId);
+      throw e;
+    }
   },
   async reset() {
     await resetDemoFn();
