@@ -4,6 +4,7 @@
 import { request, setToken, clearAuth, getEstateId, setEstateId } from "./http";
 import { getQueryClient } from "./query-client";
 import type { State, Unit } from "./types";
+import type { Bank } from "./banks";
 
 export interface PublicStatement {
   estate: { name: string; city: string };
@@ -88,6 +89,21 @@ export async function fetchReports() {
   return request("GET", `/estate/${estateId}/reports`);
 }
 
+// Live float in the shared Nomba settlement sub-account. `available` is false
+// when Nomba isn't configured/reachable so the widget can show a fallback.
+export interface AccountBalance {
+  available: boolean;
+  amountNaira?: number;
+  currency?: string;
+  asOf?: number;
+}
+
+export async function fetchAccountBalance() {
+  const estateId = getEstateId();
+  if (!estateId) throw new Error("No estate selected");
+  return request<AccountBalance>("GET", `/estate/${estateId}/account-balance`);
+}
+
 export async function fetchPublicStatement({ data }: { data: { token: string } }) {
   return request<PublicStatement | null>("GET", `/public/${data.token}`);
 }
@@ -114,6 +130,18 @@ export async function assignUnitGroupFn({ data }: { data: { unitId: string; grou
   return request("PATCH", `/estate/${getEstateId()}/units/${data.unitId}/group`, { groupId: data.groupId });
 }
 
+// ---------- unit contact / lifecycle ----------
+// Edit a unit's resident contact fields. The virtual account is immutable, so it
+// is never sent here. Omit a field to leave it unchanged; send phone: "" to clear.
+export async function updateUnitFn({ data }: { data: { unitId: string; email?: string; phone?: string } }) {
+  const { unitId, ...body } = data;
+  return request("PATCH", `/estate/${getEstateId()}/units/${unitId}`, body);
+}
+
+export async function deleteUnitFn({ data }: { data: { unitId: string } }) {
+  return request("DELETE", `/estate/${getEstateId()}/units/${data.unitId}`);
+}
+
 // ---------- exceptions ----------
 export async function resolveExceptionFn({ data }: { data: { exceptionId: string; action: string; targetUnitId?: string } }) {
   return request("POST", `/exceptions/${data.exceptionId}/resolve`, { action: data.action, targetUnitId: data.targetUnitId });
@@ -126,6 +154,27 @@ export async function payVendorFn({ data }: { data: { vendorId: string; amountNa
 
 export async function addVendorFn({ data }: { data: { name: string; category: string; bankName: string; bankCode?: string; accountNumber: string } }) {
   return request("POST", "/vendors", { estateId: getEstateId(), ...data });
+}
+
+export async function updateVendorFn({ data }: { data: { vendorId: string; name?: string; category?: string; bankName?: string; bankCode?: string; accountNumber?: string } }) {
+  const { vendorId, ...body } = data;
+  return request("PATCH", `/vendors/${vendorId}`, { estateId: getEstateId(), ...body });
+}
+
+// estateId goes on the query string — DELETE carries no body.
+export async function deleteVendorFn({ data }: { data: { vendorId: string } }) {
+  return request("DELETE", `/vendors/${data.vendorId}?estateId=${getEstateId()}`);
+}
+
+// Confirms the account-holder name for a bank account (Nomba name enquiry) so a
+// manager can verify a vendor before saving. Stateless — no estate scope.
+export async function resolveAccountFn({ data }: { data: { accountNumber: string; bankCode: string } }) {
+  return request<{ accountName: string }>("POST", "/vendors/resolve-account", data);
+}
+
+// Live bank list (with codes) from Nomba, for the Add Vendor bank dropdown.
+export async function fetchBanksFn() {
+  return request<Bank[]>("GET", "/vendors/banks");
 }
 
 // ---------- billing ----------
@@ -174,8 +223,14 @@ export async function provisionUnitsFn({
   data,
 }: {
   data: { units: { label: string; block: string; occupantName: string; occupantPhone?: string; occupancyType?: "OWNER" | "TENANT" }[] };
-}): Promise<{ label: string; accountNumber: string | null }[]> {
-  const res = await request<{ succeeded: { unit: { unitName: string }; account: { accountNumber: string } }[] }>(
+}): Promise<{
+  succeeded: { label: string; accountNumber: string | null }[];
+  failed: { unit: string; reason: string }[];
+}> {
+  const res = await request<{
+    succeeded: { unit: { unitName: string }; account: { accountNumber: string } }[];
+    failed: { unit: string; reason: string }[];
+  }>(
     "POST",
     "/onboarding/unit",
     {
@@ -190,7 +245,10 @@ export async function provisionUnitsFn({
       })),
     },
   );
-  return res.succeeded.map((s) => ({ label: s.unit.unitName, accountNumber: s.account.accountNumber }));
+  return {
+    succeeded: res.succeeded.map((s) => ({ label: s.unit.unitName, accountNumber: s.account.accountNumber })),
+    failed: res.failed ?? [],
+  };
 }
 
 // ---------- estate settings ----------

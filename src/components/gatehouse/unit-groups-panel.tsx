@@ -56,11 +56,14 @@ export function UnitGroupsPanel({ units, groups, recentlyChanged, onOpenUnit, cl
   };
 
   const deleteGroup = async (id: string, gName: string) => {
+    // The store removes the group optimistically and restores it if this throws.
     try {
       await store.deleteGroup(id);
       toast(`Group "${gName}" removed`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not remove group");
+      toast.error(`Couldn't remove ${gName} — restored it`, {
+        description: e instanceof Error ? e.message : undefined,
+      });
     }
   };
 

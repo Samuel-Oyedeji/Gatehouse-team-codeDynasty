@@ -50,7 +50,7 @@ export function AddUnitDialog({ children }: { children: React.ReactNode }) {
     if (validRows.length === 0) return;
     setBusy(true);
     try {
-      await store.addUnits(
+      const { succeeded, failed } = await store.addUnits(
         validRows.map((r) => ({
           label: r.label.trim(),
           block: blockFromLabel(r.label),
@@ -58,11 +58,17 @@ export function AddUnitDialog({ children }: { children: React.ReactNode }) {
           occupantPhone: r.phone.trim() || undefined,
         })),
       );
-      toast.success(`${validRows.length} unit${validRows.length === 1 ? "" : "s"} added — account numbers minted`);
+      toast.success(`${succeeded.length} unit${succeeded.length === 1 ? "" : "s"} added — account numbers minted`);
+      // Some units can fail while others succeed (e.g. Nomba rejects a name).
+      // Tell the manager exactly which ones and why so they can fix and re-add.
+      if (failed.length > 0) {
+        toast.error(`${failed.length} failed — ${failed.map((f) => `${f.unit}: ${f.reason}`).join("; ")}`);
+      }
       reset();
       setOpen(false);
-    } catch {
-      toast.error("Could not add units");
+    } catch (err) {
+      // Total failure: the backend returns the reasons in the error message.
+      toast.error(err instanceof Error ? err.message : "Could not add units");
     } finally {
       setBusy(false);
     }

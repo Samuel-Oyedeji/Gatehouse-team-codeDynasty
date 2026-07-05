@@ -5,8 +5,8 @@
 // existing components render unchanged.
 
 export type UnitStatus = "paid" | "partial" | "overdue" | "unbilled" | "credit";
-export type PaymentStatus = "matched" | "partial" | "overpayment" | "exception" | "manual";
-export type ExceptionType = "overpayment" | "duplicate" | "misdirected" | "third_party";
+export type PaymentStatus = "matched" | "partial" | "overpayment" | "exception" | "manual" | "reversed";
+export type ExceptionType = "overpayment" | "duplicate" | "misdirected" | "third_party" | "reversal";
 
 export interface Charge {
   id: string;
@@ -27,6 +27,8 @@ export interface LedgerEntry {
   amount: number; // + charge, - payment/credit (naira)
   running: number;
   allocation?: string;
+  // Settlement of THIS charge (charge rows only) — drives the ledger's paid column.
+  settled?: "paid" | "partial" | "unpaid";
 }
 
 export interface Unit {
@@ -36,6 +38,7 @@ export interface Unit {
   groupId: string | null; // user-defined group; null = ungrouped
   occupant: string;
   phone: string;
+  email: string;
   accountNumber: string;
   occupantType: "owner" | "tenant";
   balance: number; // naira owed
@@ -70,6 +73,7 @@ export interface Vendor {
   name: string;
   category: string;
   bank: string;
+  bankCode: string; // Nomba bank code — needed to prefill the edit dialog + payouts
   account: string;
   totalPaid: number; // naira
 }
@@ -77,6 +81,7 @@ export interface Vendor {
 export interface Payout {
   id: string;
   vendorId: string;
+  vendorName: string; // snapshotted server-side so history survives vendor deletion
   amount: number; // naira
   note: string;
   date: number;

@@ -43,7 +43,7 @@ function OnboardingPage() {
   const total = 4;
   const [draft, setDraft] = useState<Draft>({
     unitCount: 60,
-    serviceCharge: 45000,
+    serviceCharge: 0,
     cadence: "quarterly",
     levies: [],
     accounts: [],
@@ -210,7 +210,7 @@ function StepFees({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draft
   return (
     <StepCard title="Set the fee structure" sub="What residents pay you, and how often.">
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>Service charge (₦)</Label><Input type="number" value={serviceCharge} onChange={(e) => setServiceCharge(Number(e.target.value))} placeholder="45000" /></div>
+        <div><Label>Service charge (₦)</Label><Input type="number" value={serviceCharge} onChange={(e) => setServiceCharge(Number(e.target.value))} placeholder="0" /></div>
         <div>
           <Label>Cadence</Label>
           <Select value={cadence} onValueChange={setCadence}>
@@ -307,14 +307,19 @@ function StepUnits({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draf
   async function provision(units: { label: string; block: string; occupantName: string; occupantPhone?: string }[]) {
     setBusy(true);
     try {
-      const provisioned = await provisionUnitsFn({ data: { units } });
+      const { succeeded, failed } = await provisionUnitsFn({ data: { units } });
       setDraft({
         ...draft,
-        accounts: provisioned.map((p) => ({ label: p.label, accountNumber: p.accountNumber })),
+        accounts: succeeded.map((p) => ({ label: p.label, accountNumber: p.accountNumber })),
       });
-      toast.success(`${provisioned.length} unit account${provisioned.length === 1 ? "" : "s"} provisioned`);
-    } catch {
-      toast.error("Could not provision unit accounts");
+      toast.success(`${succeeded.length} unit account${succeeded.length === 1 ? "" : "s"} provisioned`);
+      // Surface any units that failed (e.g. Nomba rejected the name) with the reason.
+      if (failed.length > 0) {
+        toast.error(`${failed.length} failed — ${failed.map((f) => `${f.unit}: ${f.reason}`).join("; ")}`);
+      }
+    } catch (err) {
+      // Total failure: the backend returns the reasons in the error message.
+      toast.error(err instanceof Error ? err.message : "Could not provision unit accounts");
     } finally {
       setBusy(false);
     }

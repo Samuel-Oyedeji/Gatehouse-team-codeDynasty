@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useGatehouse, store } from "@/lib/store";
 import { KpiCard } from "@/components/gatehouse/kpi-card";
+import { AccountBalanceCard } from "@/components/gatehouse/account-balance-card";
 import { Money } from "@/components/gatehouse/money";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,7 +47,7 @@ function Dashboard() {
         }
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <KpiCard
           label="Collected this cycle"
           value={<Money value={stats.collected} />}
@@ -74,6 +75,7 @@ function Dashboard() {
             <div style={{ width: `${(stats.unpaid / units.length) * 100}%`, backgroundColor: "#F43F5E" }} />
           </div>
         </KpiCard>
+        <AccountBalanceCard />
       </div>
 
       <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">

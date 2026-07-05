@@ -19,3 +19,5 @@ export function getQueryClient(): QueryClient {
 }
 
 export const ESTATE_STATE_KEY = ["estate-state"] as const;
+export const ACCOUNT_BALANCE_KEY = ["account-balance"] as const;
+export const BANKS_KEY = ["banks"] as const;

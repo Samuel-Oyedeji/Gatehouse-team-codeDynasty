@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Money } from "@/components/gatehouse/money";
+import { UnitPicker } from "@/components/gatehouse/unit-picker";
 import { Progress } from "@/components/ui/progress";
 import { useGatehouse } from "@/lib/store";
+import type { Group, Unit } from "@/lib/types";
 import { createBillingRunFn, createLevyFn } from "@/lib/api";
 import { getQueryClient } from "@/lib/query-client";
 import { formatDate } from "@/lib/format";
@@ -21,7 +23,7 @@ export const Route = createFileRoute("/app/billing")({
 });
 
 function BillingPage() {
-  const { billingRuns, levies, units } = useGatehouse();
+  const { billingRuns, levies, units, groups } = useGatehouse();
 
   return (
     <>
@@ -33,7 +35,7 @@ function BillingPage() {
         </TabsList>
 
         <TabsContent value="runs" className="mt-4 space-y-4">
-          <div className="flex justify-end"><CreateBillingDialog unitCount={units.length} /></div>
+          <div className="flex justify-end"><CreateBillingDialog units={units} groups={groups} /></div>
           <Card className="overflow-hidden p-0">
             <table className="w-full text-sm">
               <thead className="bg-secondary text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -66,7 +68,7 @@ function BillingPage() {
         </TabsContent>
 
         <TabsContent value="levies" className="mt-4 space-y-4">
-          <div className="flex justify-end"><CreateLevyDialog /></div>
+          <div className="flex justify-end"><CreateLevyDialog units={units} groups={groups} /></div>
           {levies.map((l) => (
             <Card key={l.id} className="p-6">
               <div className="flex items-start justify-between gap-4">
@@ -94,16 +96,20 @@ function BillingPage() {
   );
 }
 
-function CreateBillingDialog({ unitCount }: { unitCount: number }) {
+function CreateBillingDialog({ units, groups }: { units: Unit[]; groups: Group[] }) {
   const [open, setOpen] = useState(false);
   const [cycle, setCycle] = useState("Q4 2026");
-  const [amount, setAmount] = useState(45000);
+  const [amount, setAmount] = useState(0);
+  const [selected, setSelected] = useState<Set<string> | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // null selection = all units (omit unitIds so the backend bills everyone).
+  const targetCount = selected ? selected.size : units.length;
 
   async function submit() {
     setBusy(true);
     try {
-      const res = await createBillingRunFn({ data: { cycleLabel: cycle, chargeAmountNaira: amount, dueDate: Date.now() + 14 * 86_400_000 } });
+      const res = await createBillingRunFn({ data: { cycleLabel: cycle, chargeAmountNaira: amount, dueDate: Date.now() + 14 * 86_400_000, unitIds: selected ? [...selected] : undefined } });
       await getQueryClient().invalidateQueries();
       toast.success(`Billing run created — ${res.unitsBilled} residents notified`);
       setOpen(false);
@@ -122,36 +128,38 @@ function CreateBillingDialog({ unitCount }: { unitCount: number }) {
         <div className="space-y-4">
           <div><Label>Cycle</Label><Input value={cycle} onChange={(e) => setCycle(e.target.value)} /></div>
           <div><Label>Charge amount (₦)</Label><Input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
-          <div><Label>Apply to</Label><Input readOnly value={`All units (${unitCount})`} /></div>
+          <UnitPicker units={units} groups={groups} value={selected} onChange={setSelected} />
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={busy}>{busy ? "Billing…" : `Bill ${unitCount} units`}</Button>
+          <Button onClick={submit} disabled={busy || targetCount === 0}>{busy ? "Billing…" : `Bill ${targetCount} unit${targetCount === 1 ? "" : "s"}`}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function CreateLevyDialog() {
+function CreateLevyDialog({ units, groups }: { units: Unit[]; groups: Group[] }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [due, setDue] = useState("");
   const [exact, setExact] = useState(true);
+  const [selected, setSelected] = useState<Set<string> | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit() {
     const amt = Number(amount);
     if (!name.trim() || !amt) return toast.error("Enter a levy name and amount");
+    if (selected && selected.size === 0) return toast.error("Select at least one unit");
     setBusy(true);
     try {
       const dueDate = due ? new Date(due).getTime() : Date.now() + 12 * 86_400_000;
-      const res = await createLevyFn({ data: { name: name.trim(), amountNaira: amt, dueDate, requireExact: exact } });
+      const res = await createLevyFn({ data: { name: name.trim(), amountNaira: amt, dueDate, requireExact: exact, unitIds: selected ? [...selected] : undefined } });
       await getQueryClient().invalidateQueries();
       toast.success(`Levy created — ${res.unitsBilled} residents notified`);
       setOpen(false);
-      setName(""); setAmount(""); setDue("");
+      setName(""); setAmount(""); setDue(""); setSelected(null);
     } catch {
       toast.error("Could not create levy");
     } finally {
@@ -172,6 +180,7 @@ function CreateLevyDialog() {
             <input type="checkbox" id="exact" checked={exact} onChange={(e) => setExact(e.target.checked)} />
             <label htmlFor="exact">Require exact amount — flag payments into this levy that are not the exact figure.</label>
           </div>
+          <UnitPicker units={units} groups={groups} value={selected} onChange={setSelected} />
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>

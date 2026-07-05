@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SectionHeader } from "@/components/gatehouse/section-header";
 import { KpiCard } from "@/components/gatehouse/kpi-card";
+import { AccountBalanceCard } from "@/components/gatehouse/account-balance-card";
 import { Money } from "@/components/gatehouse/money";
 import { StatusPill } from "@/components/gatehouse/status-pill";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, CartesianGrid, Tooltip } from "recharts";
@@ -47,10 +48,11 @@ function ReportsPage() {
         </TabsList>
 
         <TabsContent value="financials" className="mt-4 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard label="Total collected" value={<Money value={collected} />} />
             <KpiCard label="Total spent" value={<Money value={spent} />} />
-            <KpiCard label="Balance" value={<Money value={collected - spent} />} sub="Sitting in estate account" />
+            <KpiCard label="Balance" value={<Money value={collected - spent} />} sub="Expected — collected minus spent" />
+            <AccountBalanceCard />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

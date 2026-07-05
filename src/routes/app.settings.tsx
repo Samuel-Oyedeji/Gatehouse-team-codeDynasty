@@ -127,7 +127,7 @@ function EstateTab({ initial }: { initial: { name: string; address: string; city
 }
 
 function FeesTab() {
-  const [amount, setAmount] = useState(45000);
+  const [amount, setAmount] = useState(0);
   const [cadence, setCadence] = useState("quarterly");
   const [busy, setBusy] = useState(false);
   async function save() {

@@ -3,18 +3,26 @@
 // (getEstateState) via TanStack Query and mutates through server functions,
 // invalidating the estate-state cache after each change.
 import { useQuery } from "@tanstack/react-query";
-import { getQueryClient, ESTATE_STATE_KEY } from "./query-client";
+import { getQueryClient, ESTATE_STATE_KEY, ACCOUNT_BALANCE_KEY, BANKS_KEY } from "./query-client";
 import type { State } from "./types";
 import {
   fetchEstateState,
+  fetchAccountBalance,
   simulatePayment,
   resolveExceptionFn,
   payVendorFn,
+  addVendorFn,
+  updateVendorFn,
+  deleteVendorFn,
+  resolveAccountFn,
+  fetchBanksFn,
   resetDemoFn,
   provisionUnitsFn,
   createGroupFn,
   deleteGroupFn,
   assignUnitGroupFn,
+  updateUnitFn,
+  deleteUnitFn,
 } from "./api";
 
 export * from "./types";
@@ -25,7 +33,8 @@ export type ResolveAction =
   | "duplicate-hold"
   | "duplicate-keep"
   | "reassign"
-  | "attribute";
+  | "attribute"
+  | "acknowledge";
 
 export const EMPTY_STATE: State = {
   estate: { id: "", name: "", address: "", city: "" },
@@ -58,6 +67,26 @@ export function useGatehouse(): State {
   return data ?? EMPTY_STATE;
 }
 
+/** Live Nomba settlement-account balance. Polls every 60s so the figure stays
+ *  current without a manual refresh. */
+export function useAccountBalanceQuery() {
+  return useQuery({
+    queryKey: ACCOUNT_BALANCE_KEY,
+    queryFn: () => fetchAccountBalance(),
+    refetchInterval: 60_000,
+  });
+}
+
+/** Live bank list (with codes) for the Add Vendor dropdown. Banks rarely change,
+ *  so cache aggressively and don't refetch across a session. */
+export function useBanksQuery() {
+  return useQuery({
+    queryKey: BANKS_KEY,
+    queryFn: () => fetchBanksFn(),
+    staleTime: 24 * 60 * 60_000,
+  });
+}
+
 export const store = {
   async recordPayment(unitLabel: string, amountNaira: number) {
     await simulatePayment({ data: { unitLabel, amountNaira } });
@@ -70,6 +99,25 @@ export const store = {
   async payVendor(vendorId: string, amountNaira: number, note: string) {
     await payVendorFn({ data: { vendorId, amountNaira, note } });
     await refresh();
+  },
+  async addVendor(input: { name: string; category: string; bankName: string; bankCode: string; accountNumber: string }) {
+    const vendor = await addVendorFn({ data: input });
+    await refresh();
+    return vendor;
+  },
+  async updateVendor(vendorId: string, input: { name: string; category: string; bankName: string; bankCode: string; accountNumber: string }) {
+    const vendor = await updateVendorFn({ data: { vendorId, ...input } });
+    await refresh();
+    return vendor;
+  },
+  async deleteVendor(vendorId: string) {
+    await deleteVendorFn({ data: { vendorId } });
+    await refresh();
+  },
+  // Name enquiry — a read, not a mutation, so no cache refresh. Kept on the store
+  // so pages reach the server through one bridge.
+  resolveAccount(accountNumber: string, bankCode: string) {
+    return resolveAccountFn({ data: { accountNumber, bankCode } });
   },
   async addUnits(
     units: {
@@ -89,9 +137,28 @@ export const store = {
     await refresh();
     return group;
   },
+  // Optimistic: drop the group and revert its units to ungrouped (matching the
+  // server's SetNull) so the section vanishes instantly. Snapshot-restore on
+  // failure since a delete touches the group plus every member unit.
   async deleteGroup(groupId: string) {
-    await deleteGroupFn({ data: { groupId } });
-    await refresh();
+    const qc = getQueryClient();
+    const prev = qc.getQueryData<State>(ESTATE_STATE_KEY);
+    qc.setQueryData<State>(ESTATE_STATE_KEY, (s) =>
+      s
+        ? {
+            ...s,
+            groups: s.groups.filter((g) => g.id !== groupId),
+            units: s.units.map((u) => (u.groupId === groupId ? { ...u, groupId: null } : u)),
+          }
+        : s,
+    );
+    try {
+      await deleteGroupFn({ data: { groupId } });
+      await refresh();
+    } catch (e) {
+      if (prev) qc.setQueryData(ESTATE_STATE_KEY, prev);
+      throw e;
+    }
   },
   // Optimistic: move the unit in the cache immediately so the tile jumps to its
   // new group without waiting on the server. Reconcile with server truth on
@@ -115,6 +182,16 @@ export const store = {
       setGroup(prevGroupId);
       throw e;
     }
+  },
+  // Edit a unit's resident contact info (email / phone). The virtual account is
+  // immutable and never sent. Refresh so the sheet and units list reflect the edit.
+  async updateUnit(unitId: string, contact: { email?: string; phone?: string }) {
+    await updateUnitFn({ data: { unitId, ...contact } });
+    await refresh();
+  },
+  async deleteUnit(unitId: string) {
+    await deleteUnitFn({ data: { unitId } });
+    await refresh();
   },
   async reset() {
     await resetDemoFn();
