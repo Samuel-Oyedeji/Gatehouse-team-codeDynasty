@@ -107,7 +107,11 @@ export class ExceptionsService {
       creditBalanceKobo: unit.creditBalanceKobo,
       occupantName: unit.occupant,
       rule: estate.allocationRule,
-      autoCreditThresholdKobo: estate.autoCreditThresholdKobo,
+      // Manual attribution IS the credit/refund decision: never re-hold surplus as a
+      // fresh overpayment exception (which applyReconEffects would silently drop,
+      // leaving the payment invisible). Any surplus beyond open charges — including a
+      // payment to an unbilled unit with no charges — becomes this unit's credit.
+      autoCreditThresholdKobo: Number.MAX_SAFE_INTEGER,
       duplicateWindowSecs: estate.duplicateWindowSecs,
       priorPayments: [],
       unitMatched: true,

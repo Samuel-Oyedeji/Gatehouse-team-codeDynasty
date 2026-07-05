@@ -223,7 +223,7 @@ export class StateService {
     unitId: string,
     charges: { id: string; description: string; originalAmountKobo: number; outstandingKobo: number; createdAt: Date }[],
     creditEntries: { id: string; amountKobo: number; reason: string; createdAt: Date }[],
-    payments: { receivedAt: Date; tag: string | null; allocations: { amountKobo: number }[] }[],
+    payments: { receivedAt: Date; tag: string | null; status: string; grossAmountKobo: number; allocations: { amountKobo: number }[] }[],
     cycle: string,
   ): LedgerEntry[] {
     interface Ev {
@@ -245,16 +245,30 @@ export class StateService {
     }
     for (const p of payments) {
       const applied = p.allocations.reduce((a, x) => a + x.amountKobo, 0);
-      if (applied <= 0) continue;
-      evs.push({
-        date: p.receivedAt.getTime(),
-        description: p.tag ? `Transfer received — ${p.tag}` : 'Transfer received',
-        kind: 'payment',
-        amount: -koboToNaira(applied),
-        affects: true,
-        allocation: `Applied to ${cycle || 'open'} charges`,
-        order: 1,
-      });
+      if (applied > 0) {
+        evs.push({
+          date: p.receivedAt.getTime(),
+          description: p.tag ? `Transfer received — ${p.tag}` : 'Transfer received',
+          kind: 'payment',
+          amount: -koboToNaira(applied),
+          affects: true,
+          allocation: `Applied to ${cycle || 'open'} charges`,
+          order: 1,
+        });
+      } else if (p.status !== 'EXCEPTION') {
+        // Landed but unallocated (e.g. attributed to an unbilled unit): show the
+        // incoming transfer without moving the owed balance — the money is held as
+        // credit, surfaced by the credit rows below.
+        evs.push({
+          date: p.receivedAt.getTime(),
+          description: p.tag ? `Transfer received — ${p.tag}` : 'Transfer received',
+          kind: 'payment',
+          amount: -koboToNaira(p.grossAmountKobo),
+          affects: false,
+          allocation: 'Held as credit balance',
+          order: 1,
+        });
+      }
     }
     for (const ce of creditEntries) {
       if (ce.amountKobo < 0) {
