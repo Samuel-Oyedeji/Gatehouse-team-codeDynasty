@@ -104,5 +104,5 @@ Money never sits with Gatehouse. It flows directly into the estate's own Nomba a
 | Name | Email | GitHub |
 |---|---|---|
 | Oyedeji Samuel | [oyedejisamuel05@gmail.com](mailto:oyedejisamuel05@gmail.com) | [@Samuel-Oyedeji](https://github.com/Samuel-Oyedeji) |
-| Mahmud Adegboyega | [mahmud.adegboyega@gmail.com](mailto:mahmud.adegboyega@gmail.com) | [@Angs0n](https://github.com/Angs0n) |
-| Halimah Oluwafunmilola | [Uracilcycline@gmail.com](mailto:Uracilcycline@gmail.com) | [@MahmudChiv](https://github.com/MahmudChiv) |
+| Mahmud Adegboyega | [mahmud.adegboyega@gmail.com](mailto:mahmud.adegboyega@gmail.com) | [@MahmudChiv](https://github.com/MahmudChiv) |
+| Halimah Oluwafunmilola | [Uracilcycline@gmail.com](mailto:Uracilcycline@gmail.com) | [@Angs0n](https://github.com/Angs0n) |
