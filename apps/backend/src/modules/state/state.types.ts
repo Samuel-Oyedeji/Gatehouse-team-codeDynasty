@@ -50,6 +50,8 @@ export interface Payment {
   id: string;
   unitId: string | null;
   amount: number;
+  surplusAmount?: number; // naira; present on overpayments — the amount that would be refunded
+  sourceAccount?: string | null;
   timestamp: number;
   sender: string;
   status: PaymentStatus;

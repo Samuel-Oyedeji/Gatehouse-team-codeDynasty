@@ -53,6 +53,8 @@ export interface Payment {
   id: string;
   unitId: string | null;
   amount: number; // naira
+  surplusAmount?: number; // naira; present on overpayments
+  sourceAccount?: string | null;
   timestamp: number;
   sender: string;
   status: PaymentStatus;

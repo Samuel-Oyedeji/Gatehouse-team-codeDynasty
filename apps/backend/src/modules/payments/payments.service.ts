@@ -19,6 +19,7 @@ export interface InboundPayment {
   amountKobo: number;
   sourceName: string;
   sourceAccount?: string | null;
+  sourceBankCode?: string | null;
   receivedAt: number; // epoch ms
   rawPayload?: unknown;
   status?: PaymentStatus; // e.g. MANUAL
@@ -233,6 +234,7 @@ export class PaymentsService {
       grossAmountKobo: input.amountKobo,
       sourceName: input.sourceName,
       sourceAccount: input.sourceAccount ?? null,
+      sourceBankCode: input.sourceBankCode ?? null,
       receivedAt,
       rawPayload: input.rawPayload,
       baseStatus: input.status,
@@ -358,6 +360,7 @@ export class PaymentsService {
     grossAmountKobo: number;
     sourceName: string;
     sourceAccount: string | null;
+    sourceBankCode?: string | null;
     receivedAt: Date;
     rawPayload?: unknown;
     baseStatus?: PaymentStatus;
@@ -374,6 +377,7 @@ export class PaymentsService {
           grossAmountKobo: p.grossAmountKobo,
           sourceName: p.sourceName,
           sourceAccount: p.sourceAccount,
+          sourceBankCode: p.sourceBankCode ?? null,
           receivedAt: p.receivedAt,
           status: this.mapStatus(result, p.baseStatus),
           tag: result.tag ?? null,

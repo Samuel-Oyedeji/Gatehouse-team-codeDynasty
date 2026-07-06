@@ -125,10 +125,13 @@ export class StateService {
 
     const paymentViews: Payment[] = payments.map((p) => {
       const applied = p.allocations.reduce((a, x) => a + x.amountKobo, 0);
+      const surplusKobo = p.grossAmountKobo - applied;
       return {
         id: p.id,
         unitId: p.unitId,
         amount: koboToNaira(p.grossAmountKobo),
+        surplusAmount: p.status === 'OVERPAYMENT' ? koboToNaira(surplusKobo) : undefined,
+        sourceAccount: p.sourceAccount ?? null,
         timestamp: p.receivedAt.getTime(),
         sender: p.sourceName,
         status: paymentStatusMap[p.status] ?? 'matched',

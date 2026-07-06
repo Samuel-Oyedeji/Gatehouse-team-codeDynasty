@@ -305,6 +305,7 @@ model Payment {
   grossAmountKobo Int
   sourceName      String
   sourceAccount   String?
+  sourceBankCode  String?
   receivedAt      DateTime      @default(now())
   status          PaymentStatus
   tag             String?

@@ -73,6 +73,7 @@ export class WebhookController {
         amountKobo: nairaToKobo(amountNaira),
         sourceName: customer.senderName ?? 'Unknown sender',
         sourceAccount: customer.accountNumber ?? null,
+        sourceBankCode: customer.bankCode ?? null,
         receivedAt: tx.time ? new Date(tx.time).getTime() : Date.now(),
         rawPayload: payload,
       });

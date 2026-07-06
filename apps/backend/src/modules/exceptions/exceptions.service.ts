@@ -1,11 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ExceptionStatus, PaymentStatus, Prisma } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReconciliationService } from '../reconciliation/reconciliation.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { NombaService } from '../nomba/nomba.service';
 import { applyReconEffects, recomputeUnitRollups } from '../payments/apply';
 import { chargeKind } from '../../common/domain';
-import { formatNaira } from '../../common/money';
+import { formatNaira, koboToNaira } from '../../common/money';
 
 export type ResolveAction =
   | 'credit'
@@ -22,6 +24,7 @@ export class ExceptionsService {
     private readonly prisma: PrismaService,
     private readonly recon: ReconciliationService,
     private readonly realtime: RealtimeService,
+    private readonly nomba: NombaService,
   ) {}
 
   async resolve(exceptionId: string, action: ResolveAction, targetUnitId?: string) {
@@ -32,6 +35,27 @@ export class ExceptionsService {
     const payment = exception.payment;
     const estateId = payment.estateId;
     let message = 'Resolved';
+
+    // Validate and fire any external calls before opening the DB transaction.
+    if (exception.type === 'OVERPAYMENT' && action === 'refund') {
+      const allocated = await this.prisma.allocation.aggregate({ where: { paymentId: payment.id }, _sum: { amountKobo: true } });
+      const surplus = payment.grossAmountKobo - (allocated._sum.amountKobo ?? 0);
+      if (surplus <= 0) throw new BadRequestException('No surplus to refund');
+      const sourceBankCode =
+        (payment as any).sourceBankCode ?? (payment.rawPayload as any)?.data?.customer?.bankCode ?? null;
+      if (!payment.sourceAccount || !sourceBankCode) {
+        throw new BadRequestException('Sender bank details unavailable — process this refund manually');
+      }
+      await this.nomba.transferToBank({
+        amountNaira: koboToNaira(surplus),
+        accountNumber: payment.sourceAccount,
+        accountName: payment.sourceName,
+        bankCode: sourceBankCode,
+        merchantTxRef: `refund-${randomUUID()}`,
+        narration: 'Overpayment refund',
+      });
+      message = `Refund of ${formatNaira(surplus)} sent to ${payment.sourceName}`;
+    }
 
     await this.prisma.$transaction(async (tx) => {
       switch (exception.type) {
@@ -44,8 +68,8 @@ export class ExceptionsService {
             await tx.payment.update({ where: { id: payment.id }, data: { status: PaymentStatus.OVERPAYMENT } });
             message = `${formatNaira(surplus)} surplus moved to credit`;
           } else {
+            // Refund was already sent above; just mark the payment.
             await tx.payment.update({ where: { id: payment.id }, data: { status: PaymentStatus.OVERPAYMENT } });
-            message = `${formatNaira(surplus)} flagged for refund`;
           }
           break;
         }
