@@ -9,6 +9,7 @@ const MAP: Record<string, { label: string; bg: string; fg: string }> = {
   overdue: { label: "Overdue", bg: "#FFF1F2", fg: "#BE123C" },
   unbilled: { label: "Unbilled", bg: "#F1F5F9", fg: "#475569" },
   credit: { label: "Credit", bg: "#EEF2FF", fg: "#4338CA" },
+  debit: { label: "Debit", bg: "#FFF7ED", fg: "#C2410C" },
   overpayment: { label: "Overpayment", bg: "#EEF2FF", fg: "#4338CA" },
   exception: { label: "Exception", bg: "#FFF1F2", fg: "#BE123C" },
   duplicate: { label: "Duplicate", bg: "#FFFBEB", fg: "#B45309" },

@@ -141,7 +141,7 @@ export function UnitDetailSheet({ unitId, onOpenChange }: { unitId: string | nul
                   <AlertDialogHeader>
                     <AlertDialogTitle>Remove {unit.label}?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This removes {unit.label} ({unit.occupant}) from the estate. Payment history is kept for the record, but the unit will no longer appear in your lists. The virtual account is left untouched.
+                      This removes {unit.label} ({unit.occupant}) from the estate. Payment history is kept for the record, but the unit will no longer appear in your lists. The virtual account will be expired and can no longer receive payments.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -236,7 +236,7 @@ export function UnitDetailSheet({ unitId, onOpenChange }: { unitId: string | nul
                     </tr>
                   </thead>
                   <tbody>
-                    {unit.ledger.map((l) => (
+                    {[...unit.ledger].reverse().map((l) => (
                       <tr key={l.id} className="border-t border-border">
                         <td className="px-3 py-2 text-muted-foreground tabular">{formatDate(l.date)}</td>
                         <td className="px-3 py-2">
@@ -263,6 +263,7 @@ export function UnitDetailSheet({ unitId, onOpenChange }: { unitId: string | nul
 // much of that charge is paid; payment/credit rows describe the money movement.
 function LedgerStatus({ entry }: { entry: LedgerEntry }) {
   if (entry.kind === "payment") return <StatusPill kind="paid">Received</StatusPill>;
+  if (entry.kind === "debit") return <StatusPill kind="debit" />;
   if (entry.kind === "credit") return <StatusPill kind="credit" />;
   if (entry.settled === "paid") return <StatusPill kind="paid" />;
   if (entry.settled === "partial") return <StatusPill kind="partial" />;

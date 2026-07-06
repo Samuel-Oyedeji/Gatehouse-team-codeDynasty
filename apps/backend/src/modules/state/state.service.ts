@@ -229,7 +229,7 @@ export class StateService {
     interface Ev {
       date: number;
       description: string;
-      kind: 'charge' | 'payment' | 'credit';
+      kind: 'charge' | 'payment' | 'credit' | 'debit';
       amount: number;
       affects: boolean;
       allocation?: string;
@@ -272,7 +272,7 @@ export class StateService {
     }
     for (const ce of creditEntries) {
       if (ce.amountKobo < 0) {
-        evs.push({ date: ce.createdAt.getTime(), description: 'Credit applied', kind: 'credit', amount: koboToNaira(ce.amountKobo), affects: true, allocation: ce.reason, order: 1 });
+        evs.push({ date: ce.createdAt.getTime(), description: 'Credit applied', kind: 'debit', amount: koboToNaira(ce.amountKobo), affects: true, allocation: ce.reason, order: 1 });
       } else {
         evs.push({ date: ce.createdAt.getTime(), description: 'Overpayment — credit', kind: 'credit', amount: -koboToNaira(ce.amountKobo), affects: false, allocation: 'Held as credit balance', order: 2 });
       }

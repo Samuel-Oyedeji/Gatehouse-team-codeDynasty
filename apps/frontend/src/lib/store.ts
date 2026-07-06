@@ -93,8 +93,18 @@ export const store = {
     await refresh();
   },
   async resolveException(exceptionId: string, action: ResolveAction, targetUnitId?: string) {
-    await resolveExceptionFn({ data: { exceptionId, action, targetUnitId } });
-    await refresh();
+    const qc = getQueryClient();
+    const prev = qc.getQueryData<State>(ESTATE_STATE_KEY);
+    qc.setQueryData<State>(ESTATE_STATE_KEY, (s) =>
+      s ? { ...s, exceptions: s.exceptions.filter((e) => e.id !== exceptionId) } : s,
+    );
+    try {
+      await resolveExceptionFn({ data: { exceptionId, action, targetUnitId } });
+      await refresh();
+    } catch (e) {
+      if (prev) qc.setQueryData(ESTATE_STATE_KEY, prev);
+      throw e;
+    }
   },
   async payVendor(vendorId: string, amountNaira: number, note: string) {
     await payVendorFn({ data: { vendorId, amountNaira, note } });

@@ -439,6 +439,42 @@ export class NombaService {
     }
   }
 
+  // ─── Virtual Account Expiry ───────────────────────────────────────────────
+
+  /**
+   * Expires (deletes) a Nomba virtual account by its accountRef.
+   * Returns true on success, false if Nomba returns 404 (already expired).
+   * Throws on other errors.
+   */
+  async expireVirtualAccount(accountRef: string): Promise<boolean> {
+    const token = await this.getAccessToken();
+    try {
+      const response = await axios.delete(
+        `${this.baseUrl}/v1/accounts/virtual/${encodeURIComponent(accountRef)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            accountId: this.accountId,
+          },
+          timeout: 15000,
+        },
+      );
+      const expired = response.data?.data?.expired ?? true;
+      this.logger.log(`Virtual account ${accountRef} expired: ${expired}`);
+      return expired;
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        this.logger.warn(`Virtual account ${accountRef} not found on Nomba — already expired or never created`);
+        return false;
+      }
+      const detail = error?.response
+        ? `HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}`
+        : error?.message;
+      this.logger.error(`Failed to expire virtual account ${accountRef} — ${detail}`);
+      throw new HttpException('Failed to expire virtual account on Nomba', HttpStatus.BAD_GATEWAY);
+    }
+  }
+
   // ─── Webhook signature ────────────────────────────────────────────────────
 
   /**
@@ -461,7 +497,7 @@ export class NombaService {
       tx?.responseCode,
       nombaTimestamp,
     ].join(':');
-    const expected = createHmac('sha256', this.webhookSignatureKey).update(signed).digest('hex');
+    const expected = createHmac('sha256', this.webhookSignatureKey).update(signed).digest('base64');
     try {
       const a = Buffer.from(expected);
       const b = Buffer.from(signature);

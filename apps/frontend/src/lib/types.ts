@@ -23,7 +23,7 @@ export interface LedgerEntry {
   id: string;
   date: number;
   description: string;
-  kind: "charge" | "payment" | "credit";
+  kind: "charge" | "payment" | "credit" | "debit";
   amount: number; // + charge, - payment/credit (naira)
   running: number;
   allocation?: string;

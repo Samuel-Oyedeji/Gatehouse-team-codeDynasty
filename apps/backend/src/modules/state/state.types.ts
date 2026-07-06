@@ -20,7 +20,7 @@ export interface LedgerEntry {
   id: string;
   date: number;
   description: string;
-  kind: 'charge' | 'payment' | 'credit';
+  kind: 'charge' | 'payment' | 'credit' | 'debit';
   amount: number;
   running: number;
   allocation?: string;

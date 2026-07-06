@@ -4,7 +4,7 @@ import { C as getQueryClient, _ as fetchCurrentUser } from "./api-ByrbTN72.mjs";
 import { F as useRouter, O as redirect, c as HeadContent, d as createRouter, f as Outlet, g as Link, h as createRootRouteWithContext, m as createFileRoute, p as lazyRouteComponent, s as Scripts } from "../_libs/@tanstack/react-router+[...].mjs";
 import { t as Toaster } from "../_libs/sonner.mjs";
 import { t as Route$15 } from "./r._token-vV9ry23-.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-jW1180BX.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-CTYXQnXM.js
 var import_jsx_runtime = require_jsx_runtime();
 var styles_default = "/assets/styles-kuyNeQTh.css";
 var Toaster$1 = ({ ...props }) => {
@@ -115,6 +115,11 @@ var Route$14 = createRootRouteWithContext()({
 			}
 		],
 		links: [
+			{
+				rel: "icon",
+				type: "image/x-icon",
+				href: "/favicon.ico"
+			},
 			{
 				rel: "stylesheet",
 				href: styles_default
