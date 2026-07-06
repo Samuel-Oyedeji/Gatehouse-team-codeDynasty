@@ -43,7 +43,7 @@ function LoginPage() {
           <h1 className="font-display text-2xl font-semibold">Sign in</h1>
           <p className="mt-1 text-sm text-muted-foreground">Welcome back to your estate.</p>
           <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-            <div><Label htmlFor="e">Email</Label><Input id="e" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="adaeze@maplecourt.ng" /></div>
+            <div><Label htmlFor="e">Email</Label><Input id="e" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@business.com" /></div>
             <div><Label htmlFor="p">Password</Label><Input id="p" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter password" /></div>
             <Button type="submit" className="w-full" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</Button>
           </form>

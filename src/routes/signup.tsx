@@ -112,7 +112,7 @@ function SignupPage() {
           <p className="mt-1 text-sm text-muted-foreground">Set up Gatehouse for your estate in under five minutes.</p>
           <form className="mt-6 space-y-4" onSubmit={onSubmit}>
             <div><Label>Full name</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Adaeze Okafor" /></div>
-            <div><Label>Work email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="adaeze@maplecourt.ng" /></div>
+            <div><Label>Work email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@business.com" /></div>
             <div><Label>Phone</Label><Input type="tel" inputMode="numeric" value={phone} onChange={(e) => setPhone(sanitizePhone(e.target.value))} onBlur={() => setPhone((p) => normalizePhone(p))} placeholder="+2348030000000" /></div>
             <div>
               <Label>Password</Label>
