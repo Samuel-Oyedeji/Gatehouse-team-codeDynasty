@@ -1,5 +1,7 @@
 // Thin HTTP client for the NestJS backend. The JWT and current estate id live in
 // localStorage (client-only); server-side loaders only call public endpoints.
+// Note: VITE_API_URL must be set in Vercel's Environment Variables (Project Settings)
+// and requires a fresh deployment (without cache) to be baked into the client bundle.
 const API_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
 const TOKEN_KEY = "gatehouse_token";
 const ESTATE_KEY = "gatehouse_estate";
