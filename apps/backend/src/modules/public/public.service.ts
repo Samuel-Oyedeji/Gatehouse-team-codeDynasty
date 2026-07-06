@@ -3,6 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StateService } from '../state/state.service';
 import type { Unit } from '../state/state.types';
 
+export interface EstateTransparency {
+  estate: { name: string; city: string };
+  collected: number;
+  spent: number;
+  byCategory: { category: string; amount: number }[];
+}
+
 export interface PublicStatement {
   estate: { name: string; city: string };
   unit: Unit;
@@ -22,6 +29,28 @@ export class PublicService {
     private readonly prisma: PrismaService,
     private readonly state: StateService,
   ) {}
+
+  async getEstateTransparency(estateId: string): Promise<EstateTransparency | null> {
+    let state: Awaited<ReturnType<StateService['getEstateState']>>;
+    try { state = await this.state.getEstateState(estateId); } catch { return null; }
+
+    const spent = state.payouts.filter((p) => p.status !== 'failed').reduce((a, p) => a + p.amount, 0);
+    const collected = state.units.reduce((a, u) => a + u.charges.reduce((b, c) => b + c.paid, 0), 0);
+    const categoryByVendor = new Map(state.vendors.map((v) => [v.id, v.category]));
+    const byCategoryMap = new Map<string, number>();
+    for (const p of state.payouts) {
+      if (p.status === 'failed') continue;
+      const cat = categoryByVendor.get(p.vendorId) ?? 'Other';
+      byCategoryMap.set(cat, (byCategoryMap.get(cat) ?? 0) + p.amount);
+    }
+
+    return {
+      estate: { name: state.estate.name, city: state.estate.city },
+      collected,
+      spent,
+      byCategory: [...byCategoryMap.entries()].map(([category, amount]) => ({ category, amount })),
+    };
+  }
 
   async getPublicStatement(tokenOrUnitId: string): Promise<PublicStatement | null> {
     const link = await this.prisma.residentLink.findUnique({ where: { token: tokenOrUnitId }, include: { unit: true } });

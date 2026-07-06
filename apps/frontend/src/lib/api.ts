@@ -116,6 +116,17 @@ export async function fetchPublicStatement({ data }: { data: { token: string } }
   return request<PublicStatement | null>("GET", `/public/${data.token}`);
 }
 
+export interface EstateTransparency {
+  estate: { name: string; city: string };
+  collected: number;
+  spent: number;
+  byCategory: { category: string; amount: number }[];
+}
+
+export async function fetchEstateTransparency({ data }: { data: { estateId: string } }) {
+  return request<EstateTransparency | null>("GET", `/public/estate/${data.estateId}`);
+}
+
 // ---------- payments ----------
 export async function simulatePayment({ data }: { data: { unitLabel: string; amountNaira: number } }) {
   return request("POST", "/payments/simulate", { estateId: getEstateId(), unitLabel: data.unitLabel, amountNaira: data.amountNaira });

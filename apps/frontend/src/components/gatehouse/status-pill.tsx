@@ -1,6 +1,6 @@
 import type { UnitStatus, PaymentStatus, ExceptionType } from "@/lib/store";
 
-type Kind = UnitStatus | PaymentStatus | ExceptionType | "exception";
+type Kind = UnitStatus | PaymentStatus | ExceptionType | "exception" | "debit";
 
 const MAP: Record<string, { label: string; bg: string; fg: string }> = {
   paid: { label: "Paid", bg: "#ECFDF5", fg: "#047857" },

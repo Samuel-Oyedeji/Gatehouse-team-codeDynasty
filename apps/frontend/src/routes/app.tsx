@@ -34,7 +34,7 @@ const NAV = [
 function AppShell() {
   useLiveUpdates();
   const nav = useNavigate();
-  const { estate, cycle, exceptions } = useGatehouse();
+  const { estate, exceptions } = useGatehouse();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -103,7 +103,7 @@ function AppShell() {
             <span className="text-muted-foreground text-sm">·</span>
             <span className="text-sm text-muted-foreground">{estate.city}</span>
           </div>
-          <div className="text-sm text-muted-foreground rounded-md border border-border px-2.5 py-1 tabular">{cycle}</div>
+
           <div className="flex-1" />
           <div className={`text-xs px-2.5 py-1 rounded-full tabular font-medium ${
             exceptions.length > 0 ? "bg-[#FFF1F2] text-[#BE123C]" : "bg-[#ECFDF5] text-[#047857]"

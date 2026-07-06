@@ -17,8 +17,14 @@ export const Route = createFileRoute("/app/reports")({
   component: ReportsPage,
 });
 
+function fmtAxis(v: number): string {
+  if (v >= 1_000_000) return `₦${(v / 1_000_000).toFixed(1).replace(/\.0$/, "")}m`;
+  if (v >= 1_000) return `₦${Math.round(v / 1_000)}k`;
+  return `₦${Math.round(v)}`;
+}
+
 function ReportsPage() {
-  const { units, vendors, payouts, payments, estate, cycle } = useGatehouse();
+  const { units, vendors, payouts, payments, estate } = useGatehouse();
   const collected = units.reduce((a, u) => a + u.charges.reduce((b, c) => b + c.paid, 0), 0);
   const spent = payouts.reduce((a, p) => a + p.amount, 0);
   const arrears = units.filter((u) => u.balance > 0).sort((a, b) => b.balance - a.balance);
@@ -36,11 +42,18 @@ function ReportsPage() {
     const key = `${d.getMonth() + 1}/${d.getDate()}`;
     byDay.set(key, (byDay.get(key) ?? 0) + p.amount);
   }
-  const trend = [...byDay.entries()].slice(-8).map(([week, amount]) => ({ week, collected: amount }));
+  const trend = [...byDay.entries()]
+    .sort((a, b) => {
+      const [am, ad] = a[0].split("/").map(Number);
+      const [bm, bd] = b[0].split("/").map(Number);
+      return am !== bm ? am - bm : ad - bd;
+    })
+    .slice(-8)
+    .map(([week, amount]) => ({ week, collected: amount }));
 
   return (
     <>
-      <SectionHeader title={`Reports — ${cycle}`} sub="Money in versus money out, plus a public view for residents." />
+      <SectionHeader title="Reports" sub="Money in versus money out, plus a public view for residents." />
       <Tabs defaultValue="financials">
         <TabsList>
           <TabsTrigger value="financials">Estate financials</TabsTrigger>
@@ -62,7 +75,7 @@ function ReportsPage() {
                 <BarChart data={byCategory}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                   <XAxis dataKey="name" stroke="#64748B" fontSize={12} />
-                  <YAxis stroke="#64748B" fontSize={12} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
+                  <YAxis stroke="#64748B" fontSize={12} tickFormatter={fmtAxis} />
                   <Tooltip formatter={(v: number) => ngn(v)} />
                   <Bar dataKey="amount" fill="#0F766E" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -74,7 +87,7 @@ function ReportsPage() {
                 <LineChart data={trend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
                   <XAxis dataKey="week" stroke="#64748B" fontSize={12} />
-                  <YAxis stroke="#64748B" fontSize={12} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
+                  <YAxis stroke="#64748B" fontSize={12} tickFormatter={fmtAxis} />
                   <Tooltip formatter={(v: number) => ngn(v)} />
                   <Line type="monotone" dataKey="collected" stroke="#0F766E" strokeWidth={2} dot={{ fill: "#0F766E" }} />
                 </LineChart>
@@ -114,30 +127,39 @@ function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="public" className="mt-4 space-y-6">
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/public`); toast.success("Public link copied"); }}>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Share this link with residents so they can see how their dues were spent.</p>
+            <Button variant="outline" onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/public/${estate.id}`); toast.success("Public link copied"); }}>
               <Link2 size={14} className="mr-1.5" />Copy public link
             </Button>
           </div>
-          <Card className="p-8 max-w-2xl mx-auto">
-            <div className="text-sm text-muted-foreground">{estate.name} · {cycle}</div>
-            <h2 className="font-display text-3xl font-semibold mt-2">Where your dues went</h2>
-            <p className="mt-4 text-ink leading-relaxed">
-              This quarter, residents paid <span className="font-semibold tabular"><Money value={collected} /></span>{" "}
-              in service charges. We spent <span className="font-semibold tabular"><Money value={spent} /></span>{" "}
-              keeping the estate running.
-            </p>
-            <div className="mt-6 space-y-3">
-              {byCategory.map((c) => (
-                <div key={c.name} className="flex items-center justify-between border-b border-border pb-3">
-                  <div>
-                    <div className="font-medium">{c.name}</div>
-                    <div className="text-xs text-muted-foreground">{Math.round((c.amount / spent) * 100)}% of spending</div>
-                  </div>
-                  <div className="font-display text-lg font-semibold tabular"><Money value={c.amount} /></div>
-                </div>
-              ))}
+          <Card className="max-w-2xl mx-auto overflow-hidden p-0">
+            <div className="px-6 py-5 border-b border-border">
+              <div className="text-xs text-muted-foreground uppercase tracking-wide">{estate.name} · Preview</div>
+              <h2 className="font-display text-2xl font-semibold mt-1">Where your dues went</h2>
+              <p className="mt-2 text-sm text-ink leading-relaxed">
+                Residents paid <span className="font-semibold tabular"><Money value={collected} /></span>{" "}
+                this cycle. We spent <span className="font-semibold tabular"><Money value={spent} /></span> keeping the estate running.
+              </p>
             </div>
+            {byCategory.length === 0 ? (
+              <div className="px-6 py-8 text-center text-sm text-muted-foreground">No spending recorded yet.</div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {[...byCategory].sort((a, b) => b.amount - a.amount).map((c) => {
+                  const pct = spent > 0 ? Math.round((c.amount / spent) * 100) : 0;
+                  return (
+                    <li key={c.name} className="px-6 py-3.5 flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium capitalize">{c.name}</div>
+                        <div className="text-xs text-muted-foreground">{pct}% of spending</div>
+                      </div>
+                      <div className="font-display font-semibold tabular text-ink"><Money value={c.amount} /></div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </Card>
         </TabsContent>
       </Tabs>

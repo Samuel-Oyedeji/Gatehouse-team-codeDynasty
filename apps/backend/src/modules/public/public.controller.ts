@@ -8,6 +8,13 @@ import { PublicService } from './public.service';
 export class PublicController {
   constructor(private readonly publicService: PublicService) {}
 
+  @Get('estate/:estateId')
+  @ApiOperation({ summary: 'Estate-level transparency view (no auth)' })
+  async estateTransparency(@Param('estateId') estateId: string) {
+    const data = await this.publicService.getEstateTransparency(estateId);
+    return { message: data ? 'OK' : 'Estate not found', data };
+  }
+
   @Get(':token')
   @ApiOperation({ summary: 'Resident statement by link token (or unit id)' })
   async statement(@Param('token') token: string) {

@@ -16,6 +16,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as RTokenRouteImport } from './routes/r.$token'
+import { Route as PublicEstateIdRouteImport } from './routes/public.$estateId'
 import { Route as AppVendorsRouteImport } from './routes/app.vendors'
 import { Route as AppUnitsRouteImport } from './routes/app.units'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
@@ -58,6 +59,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const RTokenRoute = RTokenRouteImport.update({
   id: '/r/$token',
   path: '/r/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PublicEstateIdRoute = PublicEstateIdRouteImport.update({
+  id: '/public/$estateId',
+  path: '/public/$estateId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppVendorsRoute = AppVendorsRouteImport.update({
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/app/settings': typeof AppSettingsRoute
   '/app/units': typeof AppUnitsRoute
   '/app/vendors': typeof AppVendorsRoute
+  '/public/$estateId': typeof PublicEstateIdRoute
   '/r/$token': typeof RTokenRoute
   '/app/': typeof AppIndexRoute
 }
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/app/settings': typeof AppSettingsRoute
   '/app/units': typeof AppUnitsRoute
   '/app/vendors': typeof AppVendorsRoute
+  '/public/$estateId': typeof PublicEstateIdRoute
   '/r/$token': typeof RTokenRoute
   '/app': typeof AppIndexRoute
 }
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/app/settings': typeof AppSettingsRoute
   '/app/units': typeof AppUnitsRoute
   '/app/vendors': typeof AppVendorsRoute
+  '/public/$estateId': typeof PublicEstateIdRoute
   '/r/$token': typeof RTokenRoute
   '/app/': typeof AppIndexRoute
 }
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/app/units'
     | '/app/vendors'
+    | '/public/$estateId'
     | '/r/$token'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/app/units'
     | '/app/vendors'
+    | '/public/$estateId'
     | '/r/$token'
     | '/app'
   id:
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/app/settings'
     | '/app/units'
     | '/app/vendors'
+    | '/public/$estateId'
     | '/r/$token'
     | '/app/'
   fileRoutesById: FileRoutesById
@@ -211,6 +223,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   SignupRoute: typeof SignupRoute
+  PublicEstateIdRoute: typeof PublicEstateIdRoute
   RTokenRoute: typeof RTokenRoute
 }
 
@@ -263,6 +276,13 @@ declare module '@tanstack/react-router' {
       path: '/r/$token'
       fullPath: '/r/$token'
       preLoaderRoute: typeof RTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/public/$estateId': {
+      id: '/public/$estateId'
+      path: '/public/$estateId'
+      fullPath: '/public/$estateId'
+      preLoaderRoute: typeof PublicEstateIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/vendors': {
@@ -356,6 +376,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   SignupRoute: SignupRoute,
+  PublicEstateIdRoute: PublicEstateIdRoute,
   RTokenRoute: RTokenRoute,
 }
 export const routeTree = rootRouteImport
