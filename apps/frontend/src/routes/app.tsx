@@ -50,7 +50,7 @@ function AppShell() {
   return (
     <div className="min-h-screen flex bg-canvas">
       {/* Sidebar */}
-      <aside className="w-60 shrink-0 border-r border-border bg-card flex flex-col">
+      <aside className="w-60 shrink-0 border-r border-border bg-card flex flex-col h-screen sticky top-0">
         <div className="h-16 flex items-center px-5 border-b border-border">
           <Link to="/app/dashboard" className="flex items-center gap-2">
             {/* <div className="h-7 w-7 rounded-md bg-brand text-white grid place-items-center font-display font-bold">G</div> */}
@@ -58,7 +58,7 @@ function AppShell() {
             <span className="font-display text-lg font-semibold tracking-tight">Gatehouse</span>
           </Link>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {NAV.map((n) => {
             const active = path.startsWith(n.to);
             const Icon = n.icon;

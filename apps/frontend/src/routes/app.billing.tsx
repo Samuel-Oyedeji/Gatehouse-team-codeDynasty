@@ -396,20 +396,17 @@ function BillingRunSheet({ run, onClose, units }: { run: BillingRunView | null; 
                 <p className="text-sm text-muted-foreground">No per-unit payment data available yet.</p>
               )}
             </div>
+            <ResendAlertDialog
+              open={alertOpen}
+              onClose={() => setAlertOpen(false)}
+              unpaidUnits={unpaidUnits}
+              cycleOrName={run.cycle}
+              chargeAmount={run.chargeAmount}
+              kind="service"
+            />
           </>
         )}
       </SheetContent>
-
-      {run && (
-        <ResendAlertDialog
-          open={alertOpen}
-          onClose={() => setAlertOpen(false)}
-          unpaidUnits={unpaidUnits}
-          cycleOrName={run.cycle}
-          chargeAmount={run.chargeAmount}
-          kind="service"
-        />
-      )}
     </Sheet>
   );
 }
@@ -495,20 +492,17 @@ function LevySheet({ levy, onClose, units }: { levy: LevyView | null; onClose: (
                 <p className="text-sm text-muted-foreground">No per-unit payment data available yet.</p>
               )}
             </div>
+            <ResendAlertDialog
+              open={alertOpen}
+              onClose={() => setAlertOpen(false)}
+              unpaidUnits={unpaidUnits}
+              cycleOrName={levy.name}
+              chargeAmount={levy.amount}
+              kind="levy"
+            />
           </>
         )}
       </SheetContent>
-
-      {levy && (
-        <ResendAlertDialog
-          open={alertOpen}
-          onClose={() => setAlertOpen(false)}
-          unpaidUnits={unpaidUnits}
-          cycleOrName={levy.name}
-          chargeAmount={levy.amount}
-          kind="levy"
-        />
-      )}
     </Sheet>
   );
 }

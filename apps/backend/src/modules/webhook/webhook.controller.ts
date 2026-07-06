@@ -31,7 +31,7 @@ export class WebhookController {
     // TEMP debug: dump the raw payload + headers before verification so we can
     // see the real Nomba shape even if the signature check fails. Remove once
     // the transaction/reversal field shapes are confirmed.
-    this.logger.log(`🔔 Nomba webhook received:\n${JSON.stringify(payload, null, 2)}`);
+    // this.logger.log(`🔔 Nomba webhook received:\n${JSON.stringify(payload, null, 2)}`);
     const verified = this.nomba.verifyWebhookSignature(payload, signature, nombaTimestamp);
     this.logger.log(
       `Signature check: ${verified ? 'PASS' : 'FAIL'} (sig=${signature ? 'present' : 'missing'}, ts=${nombaTimestamp ?? 'missing'})`,

@@ -255,13 +255,10 @@ export function UnitDetailSheet({ unitId, onOpenChange }: { unitId: string | nul
                 </table>
               </div>
             </div>
+            <SendStatementDialog open={statementOpen} onClose={() => setStatementOpen(false)} unit={unit} />
           </>
         )}
       </SheetContent>
-
-      {unit && (
-        <SendStatementDialog open={statementOpen} onClose={() => setStatementOpen(false)} unit={unit} />
-      )}
     </Sheet>
   );
 }
