@@ -1,6 +1,6 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
-import { I as require_jsx_runtime } from "../_libs/@radix-ui/react-alert-dialog+[...].mjs";
+import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { t as cn } from "./utils-C_uf36nf.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/card-CzXpCsbD.js
 var import_react = /* @__PURE__ */ __toESM(require_react());

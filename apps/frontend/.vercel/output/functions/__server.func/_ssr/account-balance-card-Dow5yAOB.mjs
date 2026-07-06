@@ -1,4 +1,4 @@
-import { I as require_jsx_runtime } from "../_libs/@radix-ui/react-alert-dialog+[...].mjs";
+import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { n as useAccountBalanceQuery } from "./store-BHHuWGN2.mjs";
 import { t as Card } from "./card-CzXpCsbD.mjs";
 import { i as relTime } from "./format-DyUNyznX.mjs";

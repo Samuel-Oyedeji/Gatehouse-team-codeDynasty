@@ -1,6 +1,7 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "./@floating-ui/react-dom+[...].mjs";
-import { E as Primitive, P as composeRefs, f as DialogContent, h as DialogPortal, k as useId, m as DialogOverlay, u as Dialog } from "./@radix-ui/react-alert-dialog+[...].mjs";
+import { a as Primitive, i as DialogPortal, n as DialogContent, o as useId, r as DialogOverlay, t as Dialog } from "./@radix-ui/react-dialog+[...].mjs";
+import { t as composeRefs } from "./radix-ui__react-compose-refs.mjs";
 //#region node_modules/cmdk/dist/chunk-NZJY6EH4.mjs
 var U = 1, Y$1 = .9, H = .8, J = .17, p = .1, u = .999, $ = .9999;
 var k$1 = .99, m = /[\\\/_+.#"@\[\(\{&]/, B$1 = /[\\\/_+.#"@\[\(\{&]/g, K$1 = /[\s-]/, X = /[\s-]/g;

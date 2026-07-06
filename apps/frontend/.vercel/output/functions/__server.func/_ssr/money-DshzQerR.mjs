@@ -1,4 +1,4 @@
-import { I as require_jsx_runtime } from "../_libs/@radix-ui/react-alert-dialog+[...].mjs";
+import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { r as ngn } from "./format-DyUNyznX.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/money-DshzQerR.js
 var import_jsx_runtime = require_jsx_runtime();

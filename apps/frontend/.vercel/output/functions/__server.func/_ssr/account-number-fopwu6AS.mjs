@@ -1,6 +1,6 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
-import { I as require_jsx_runtime } from "../_libs/@radix-ui/react-alert-dialog+[...].mjs";
+import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { E as Check, b as Copy } from "../_libs/lucide-react.mjs";
 import { n as formatNuban } from "./format-DyUNyznX.mjs";
 import { n as toast } from "../_libs/sonner.mjs";
