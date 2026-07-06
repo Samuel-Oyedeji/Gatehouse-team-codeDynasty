@@ -1,1 +1,0 @@
-import{o as e,r as t}from"./jsx-runtime-Bypl69v7.js";var n=e(t(),1);function r(e){let t=n.useRef({value:e,previous:e});return n.useMemo(()=>(t.current.value!==e&&(t.current.previous=t.current.value,t.current.value=e),t.current.previous),[e])}function i(e,[t,n]){return Math.min(n,Math.max(t,e))}export{r as n,i as t};

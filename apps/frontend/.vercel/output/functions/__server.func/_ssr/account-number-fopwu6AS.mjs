@@ -1,7 +1,7 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
-import { E as Check, b as Copy } from "../_libs/lucide-react.mjs";
+import { D as Check, x as Copy } from "../_libs/lucide-react.mjs";
 import { n as formatNuban } from "./format-DyUNyznX.mjs";
 import { n as toast } from "../_libs/sonner.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/account-number-fopwu6AS.js
