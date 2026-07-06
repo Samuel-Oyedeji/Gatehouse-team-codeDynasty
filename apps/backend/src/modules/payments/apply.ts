@@ -45,23 +45,24 @@ export async function consumeCreditForUnit(
   unitId: string,
 ): Promise<void> {
   const unit = await tx.unit.findUniqueOrThrow({ where: { id: unitId } });
-  if (unit.creditBalanceKobo <= 0) return;
-  const charges = await tx.charge.findMany({
-    where: { unitId, status: { not: 'SETTLED' } },
-    orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
-  });
-  let remaining = unit.creditBalanceKobo;
-  for (const c of charges) {
-    if (remaining <= 0) break;
-    const take = Math.min(remaining, c.outstandingKobo);
-    if (take <= 0) continue;
-    remaining -= take;
-    const newOutstanding = c.outstandingKobo - take;
-    await tx.charge.update({
-      where: { id: c.id },
-      data: { outstandingKobo: newOutstanding, status: chargeStatusFor(newOutstanding, c.originalAmountKobo) },
+  if (unit.creditBalanceKobo > 0) {
+    const charges = await tx.charge.findMany({
+      where: { unitId, status: { not: 'SETTLED' } },
+      orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
     });
-    await tx.creditEntry.create({ data: { unitId, amountKobo: -take, reason: 'Credit applied to new charge' } });
+    let remaining = unit.creditBalanceKobo;
+    for (const c of charges) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, c.outstandingKobo);
+      if (take <= 0) continue;
+      remaining -= take;
+      const newOutstanding = c.outstandingKobo - take;
+      await tx.charge.update({
+        where: { id: c.id },
+        data: { outstandingKobo: newOutstanding, status: chargeStatusFor(newOutstanding, c.originalAmountKobo) },
+      });
+      await tx.creditEntry.create({ data: { unitId, amountKobo: -take, reason: 'Credit applied to new charge' } });
+    }
   }
   await recomputeUnitRollups(tx, unitId);
 }

@@ -91,7 +91,10 @@ export class ExceptionsService {
           break;
         }
         case 'THIRD_PARTY': {
-          if (payment.unitId) {
+          if (action === 'refund') {
+            await tx.payment.update({ where: { id: payment.id }, data: { status: PaymentStatus.REVERSED } });
+            message = `${formatNaira(payment.grossAmountKobo)} flagged for refund`;
+          } else if (payment.unitId) {
             await this.applyPaymentToUnit(tx, payment.id, payment.unitId, payment.grossAmountKobo, payment.sourceName, 'Paid on behalf');
             message = 'Attributed and tagged as paid on behalf';
           }

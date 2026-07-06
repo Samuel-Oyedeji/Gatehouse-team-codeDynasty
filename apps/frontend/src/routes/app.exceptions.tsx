@@ -140,9 +140,14 @@ function ExceptionCard({ ex, payment, unit }: any) {
               </>
             )}
             {ex.type === "third_party" && (
-              <Button className="w-full" onClick={() => { store.resolveException(ex.id, "attribute"); toast.success("Attributed and tagged as paid on behalf"); }}>
-                Attribute to {unit?.label} (paid on behalf)
-              </Button>
+              <>
+                <Button className="w-full" onClick={() => { store.resolveException(ex.id, "attribute"); toast.success("Attributed and tagged as paid on behalf"); }}>
+                  Attribute to {unit?.label} (paid on behalf)
+                </Button>
+                <Button variant="outline" className="w-full" onClick={() => setRefundOpen(true)}>
+                  Issue refund
+                </Button>
+              </>
             )}
             {ex.type === "reversal" && (
               <Button className="w-full" onClick={() => { store.resolveException(ex.id, "acknowledge"); toast.success("Reversal acknowledged"); }}>
