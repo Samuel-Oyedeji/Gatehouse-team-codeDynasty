@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { useGatehouse, store } from "@/lib/store";
 import { KpiCard } from "@/components/gatehouse/kpi-card";
@@ -19,7 +19,8 @@ export const Route = createFileRoute("/app/dashboard")({
 });
 
 function Dashboard() {
-  const { units, activity, recentlyChanged, cycle, groups } = useGatehouse();
+  const { units, activity, recentlyChanged, groups } = useGatehouse();
+  const navigate = useNavigate();
   const [openUnit, setOpenUnit] = useState<string | null>(null);
 
   const stats = useMemo(() => {
@@ -36,13 +37,13 @@ function Dashboard() {
   return (
     <>
       <SectionHeader
-        title={cycle ? `Dashboard — ${cycle}` : "Dashboard"}
+        title="Dashboard"
         sub="Every payment lands here the moment it clears."
         action={
           <div className="flex gap-2">
-            <Button onClick={() => toast.success("Billing run started for this cycle")}><FilePlus2 size={14} className="mr-1.5" />Bill this cycle</Button>
+            <Button onClick={() => navigate({ to: "/app/billing", search: { create: "billing" } })}><FilePlus2 size={14} className="mr-1.5" />Create a bill</Button>
             <Button variant="outline" onClick={() => toast("Record manual payment")}><Wallet size={14} className="mr-1.5" />Record a payment</Button>
-            <Button variant="outline" onClick={() => toast("Pay a vendor")}><Send size={14} className="mr-1.5" />Pay a vendor</Button>
+            <Button variant="outline" onClick={() => navigate({ to: "/app/vendors" })}><Send size={14} className="mr-1.5" />Pay a vendor</Button>
           </div>
         }
       />

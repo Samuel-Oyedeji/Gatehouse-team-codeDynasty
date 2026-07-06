@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SectionHeader } from "@/components/gatehouse/section-header";
@@ -28,7 +27,6 @@ function SettingsPage() {
       <Tabs defaultValue="profile">
         <TabsList>
           <TabsTrigger value="profile">Estate</TabsTrigger>
-          <TabsTrigger value="fees">Fee structure</TabsTrigger>
           <TabsTrigger value="rules">Allocation rules</TabsTrigger>
           <TabsTrigger value="notif">Notifications</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
@@ -40,10 +38,6 @@ function SettingsPage() {
             key={estate.id}
             initial={{ name: estate.name, address: estate.address, city: estate.city }}
           />
-        </TabsContent>
-
-        <TabsContent value="fees" className="mt-4">
-          <FeesTab />
         </TabsContent>
 
         <TabsContent value="rules" className="mt-4">
@@ -122,41 +116,6 @@ function EstateTab({ initial }: { initial: { name: string; address: string; city
       <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
       <div><Label>City / State</Label><Input value={city} onChange={(e) => setCity(e.target.value)} /></div>
       <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save changes"}</Button>
-    </Card>
-  );
-}
-
-function FeesTab() {
-  const [amount, setAmount] = useState(0);
-  const [cadence, setCadence] = useState("quarterly");
-  const [busy, setBusy] = useState(false);
-  async function save() {
-    setBusy(true);
-    try {
-      await updateFeeStructureFn({ data: { serviceChargeNaira: amount, serviceChargeCadence: cadence } });
-      await getQueryClient().invalidateQueries();
-      toast.success("Fee structure updated");
-    } catch {
-      toast.error("Could not save");
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Card className="p-6 max-w-xl space-y-4">
-      <div><Label>Service charge amount (₦)</Label><Input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
-      <div>
-        <Label>Cadence</Label>
-        <Select value={cadence} onValueChange={setCadence}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="monthly">Monthly</SelectItem>
-            <SelectItem value="quarterly">Quarterly</SelectItem>
-            <SelectItem value="annually">Annually</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
     </Card>
   );
 }

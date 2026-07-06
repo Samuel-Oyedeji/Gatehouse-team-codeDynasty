@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +24,7 @@ import { AccountNumber } from "./account-number";
 import { Money } from "./money";
 import { StatusPill } from "./status-pill";
 import { store, useGatehouse } from "@/lib/store";
-import type { LedgerEntry } from "@/lib/types";
+import type { LedgerEntry, Unit } from "@/lib/types";
 import { formatDate } from "@/lib/format";
 import { Send, Link2, Wallet, Bell, Pencil, Trash2, Loader2, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
@@ -39,6 +40,7 @@ export function UnitDetailSheet({ unitId, onOpenChange }: { unitId: string | nul
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [statementOpen, setStatementOpen] = useState(false);
 
   // Reset transient UI (edit form, menu, confirm) whenever a different unit is
   // opened or the sheet closes, so nothing leaks into the next unit.
@@ -46,6 +48,7 @@ export function UnitDetailSheet({ unitId, onOpenChange }: { unitId: string | nul
     setEditing(false);
     setMenuOpen(false);
     setConfirmOpen(false);
+    setStatementOpen(false);
   }, [unitId]);
 
   function startEdit() {
@@ -98,7 +101,7 @@ export function UnitDetailSheet({ unitId, onOpenChange }: { unitId: string | nul
         // click on (or away from) them reads as an "outside" interaction. Keep the
         // sheet open while either is up — dismissing them shouldn't close the panel.
         onInteractOutside={(e) => {
-          if (menuOpen || confirmOpen) e.preventDefault();
+          if (menuOpen || confirmOpen || statementOpen) e.preventDefault();
         }}
       >
         {unit && (
@@ -190,7 +193,7 @@ export function UnitDetailSheet({ unitId, onOpenChange }: { unitId: string | nul
                 <Stat label="Last paid" value={unit.lastPaymentAt ? formatDate(unit.lastPaymentAt) : "—"} tone="muted" />
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" onClick={() => toast.success(`Statement sent to ${unit.occupant}`)}>
+                <Button size="sm" onClick={() => setStatementOpen(true)}>
                   <Send size={14} className="mr-1.5" /> Send statement
                 </Button>
                 {unit.balance > 0 && (
@@ -255,6 +258,10 @@ export function UnitDetailSheet({ unitId, onOpenChange }: { unitId: string | nul
           </>
         )}
       </SheetContent>
+
+      {unit && (
+        <SendStatementDialog open={statementOpen} onClose={() => setStatementOpen(false)} unit={unit} />
+      )}
     </Sheet>
   );
 }
@@ -282,5 +289,53 @@ function Stat({ label, value, tone }: { label: string; value: React.ReactNode; t
       <div className="text-[11px] uppercase tracking-wide opacity-80">{label}</div>
       <div className="mt-1 text-sm font-semibold tabular">{value}</div>
     </div>
+  );
+}
+
+function SendStatementDialog({ open, onClose, unit }: { open: boolean; onClose: () => void; unit: Unit }) {
+  const [sending, setSending] = useState(false);
+
+  const totalCharged = unit.charges.reduce((a, c) => a + c.amount, 0);
+  const totalPaid = unit.charges.reduce((a, c) => a + c.paid, 0);
+  const preview = `Hi ${unit.occupant}, your Gatehouse account summary: ₦${totalCharged.toLocaleString("en-NG")} billed, ₦${totalPaid.toLocaleString("en-NG")} received${unit.balance > 0 ? `, ₦${unit.balance.toLocaleString("en-NG")} outstanding` : ", fully settled"}. Payment account: ${unit.accountNumber} (any bank). — Gatehouse`;
+
+  async function send() {
+    setSending(true);
+    await new Promise((r) => setTimeout(r, 1200));
+    setSending(false);
+    toast.success(`Statement sent to ${unit.occupant}`);
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-display">Send statement</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="rounded-lg border border-border divide-y divide-border">
+            <div className="flex items-center justify-between px-3 py-2.5 text-sm">
+              <span className="text-muted-foreground">Phone</span>
+              <span className="font-medium">{unit.phone || "Not on file"}</span>
+            </div>
+            <div className="flex items-center justify-between px-3 py-2.5 text-sm">
+              <span className="text-muted-foreground">Email</span>
+              <span className="font-medium">{unit.email || "Not on file"}</span>
+            </div>
+          </div>
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2">Message preview</div>
+            <div className="rounded-lg bg-secondary p-3 text-xs text-ink leading-relaxed">{preview}</div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button onClick={send} disabled={sending || (!unit.phone && !unit.email)}>
+            {sending ? "Sending…" : "Send statement"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -64,6 +64,14 @@ export class BillingService {
     return { billingRunId: run.id, unitsBilled: units.length };
   }
 
+  async renameBillingRun(runId: string, newLabel: string) {
+    await this.prisma.billingRun.update({ where: { id: runId }, data: { cycleLabel: newLabel } });
+    await this.prisma.charge.updateMany({
+      where: { billingRunId: runId },
+      data: { cycleLabel: newLabel, description: `Service charge — ${newLabel}` },
+    });
+  }
+
   async createLevy(
     estateId: string,
     input: { name: string; amountKobo: number; dueDate: number; requireExact?: boolean; unitIds?: string[] },

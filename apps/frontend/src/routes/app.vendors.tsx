@@ -48,10 +48,12 @@ function VendorsPage() {
           </div>
         }
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        {vendors.map((v) => (
-          <VendorCard key={v.id} vendor={v} />
-        ))}
+      <div className="max-h-[420px] overflow-y-auto pr-1 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {vendors.map((v) => (
+            <VendorCard key={v.id} vendor={v} />
+          ))}
+        </div>
       </div>
       <Card className="overflow-hidden p-0">
         <div className="px-5 py-3 border-b border-border font-medium">Payout history</div>
@@ -104,7 +106,7 @@ function VendorCard({ vendor }: { vendor: Vendor }) {
           <div className="mt-2"><AccountNumber value={vendor.account} size="sm" /></div>
         </div>
         <div className="text-right">
-          <div className="text-xs text-muted-foreground">Paid this cycle</div>
+          <div className="text-xs text-muted-foreground">Total paid</div>
           <div className="font-display text-xl font-semibold tabular"><Money value={vendor.totalPaid} /></div>
         </div>
       </div>

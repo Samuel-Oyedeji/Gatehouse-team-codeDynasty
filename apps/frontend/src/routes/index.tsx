@@ -94,7 +94,7 @@ function HeroPreview() {
       <Card className="p-5 shadow-md">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="text-xs text-muted-foreground">Maple Court · Q3 2026</div>
+            <div className="text-xs text-muted-foreground">Maple Court</div>
             <div className="font-display text-lg font-semibold">Block A & B</div>
           </div>
           <span className="text-xs px-2.5 py-1 rounded-full bg-[#ECFDF5] text-[#047857] tabular font-medium">Unmatched: 0</span>

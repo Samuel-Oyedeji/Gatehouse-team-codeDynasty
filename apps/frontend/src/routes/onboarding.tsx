@@ -4,12 +4,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { AccountNumber } from "@/components/gatehouse/account-number";
 import { CheckCircle2, Upload, Plus, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
-import { createEstateFn, createFeesFn, fetchCurrentUser, fetchOnboardingState, provisionUnitsFn } from "@/lib/api";
+import { createEstateFn, fetchCurrentUser, fetchOnboardingState, provisionUnitsFn } from "@/lib/api";
 import { getQueryClient } from "@/lib/query-client";
 import markAsset from "@/assets/gatehouse-mark.jpeg";
 
@@ -29,9 +28,6 @@ export const Route = createFileRoute("/onboarding")({
 
 interface Draft {
   unitCount: number;
-  serviceCharge: number;
-  cadence: string;
-  levies: { name: string; amount: string }[];
   accounts: { label: string; accountNumber: string | null }[];
 }
 
@@ -40,12 +36,9 @@ function OnboardingPage() {
   // step instead of flashing step 1.
   const [step, setStep] = useState<number | null>(null);
   const nav = useNavigate();
-  const total = 4;
+  const total = 3;
   const [draft, setDraft] = useState<Draft>({
     unitCount: 60,
-    serviceCharge: 0,
-    cadence: "quarterly",
-    levies: [],
     accounts: [],
   });
 
@@ -58,7 +51,9 @@ function OnboardingPage() {
           const units = s.estate.units;
           setDraft((d) => ({ ...d, unitCount: units }));
         }
-        setStep(s.step);
+        // Backend may still return step 4 (old fees→units split). Clamp to 3
+        // since the fees step no longer exists in the frontend.
+        setStep(Math.min(s.step, 3));
       })
       .catch(() => {
         // If progress can't be loaded, fall back to a fresh wizard.
@@ -98,8 +93,7 @@ function OnboardingPage() {
       <div className="max-w-2xl mx-auto px-6 py-10">
         {step === 1 && <StepEstate draft={draft} setDraft={setDraft} next={() => setStep(2)} />}
         {step === 2 && <StepNomba next={() => setStep(3)} />}
-        {step === 3 && <StepFees draft={draft} setDraft={setDraft} next={() => setStep(4)} />}
-        {step === 4 && (
+        {step === 3 && (
           <StepUnits
             draft={draft}
             setDraft={setDraft}
@@ -179,66 +173,6 @@ function StepNomba({ next }: { next: () => void }) {
           <Button onClick={next} className="w-full">Continue</Button>
         </>
       )}
-    </StepCard>
-  );
-}
-
-function StepFees({ draft, setDraft, next }: { draft: Draft; setDraft: (d: Draft) => void; next: () => void }) {
-  const [serviceCharge, setServiceCharge] = useState(draft.serviceCharge);
-  const [cadence, setCadence] = useState(draft.cadence);
-  const [levies, setLevies] = useState(draft.levies);
-  const [busy, setBusy] = useState(false);
-
-  async function onContinue() {
-    setBusy(true);
-    try {
-      const fees = [
-        { name: "Service charge", type: "service_fee" as const, amount: serviceCharge, frequency: cadence },
-        ...levies
-          .filter((l) => l.name.trim() && Number(l.amount) > 0)
-          .map((l) => ({ name: l.name.trim(), type: "levy" as const, amount: Number(l.amount), frequency: "one_time" })),
-      ];
-      await createFeesFn({ data: { fees } });
-      setDraft({ ...draft, serviceCharge, cadence, levies });
-      next();
-    } catch {
-      toast.error("Could not save fee structure");
-      setBusy(false);
-    }
-  }
-
-  return (
-    <StepCard title="Set the fee structure" sub="What residents pay you, and how often.">
-      <div className="grid grid-cols-2 gap-3">
-        <div><Label>Service charge (₦)</Label><Input type="number" value={serviceCharge} onChange={(e) => setServiceCharge(Number(e.target.value))} placeholder="0" /></div>
-        <div>
-          <Label>Cadence</Label>
-          <Select value={cadence} onValueChange={setCadence}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="quarterly">Quarterly</SelectItem>
-              <SelectItem value="annually">Annually</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div>
-        <div className="text-sm font-medium mb-2">One-off levies (optional)</div>
-        <div className="space-y-2">
-          {levies.map((l, i) => (
-            <div key={i} className="grid grid-cols-[1fr_140px_auto] gap-2">
-              <Input placeholder="Levy name" value={l.name} onChange={(e) => setLevies(levies.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-              <Input type="number" placeholder="Amount" value={l.amount} onChange={(e) => setLevies(levies.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))} />
-              <Button variant="ghost" size="sm" onClick={() => setLevies(levies.filter((_, j) => j !== i))}>Remove</Button>
-            </div>
-          ))}
-          <Button variant="outline" size="sm" onClick={() => setLevies([...levies, { name: "", amount: "" }])}>
-            <Plus size={14} className="mr-1.5" />Add a levy
-          </Button>
-        </div>
-      </div>
-      <Button onClick={onContinue} className="w-full" disabled={busy}>{busy ? "Saving…" : "Continue"}</Button>
     </StepCard>
   );
 }

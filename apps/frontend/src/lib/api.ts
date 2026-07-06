@@ -194,6 +194,10 @@ export async function createLevyFn({ data }: { data: { name: string; amountNaira
   return request<{ unitsBilled: number }>("POST", "/billing/levy", { estateId: getEstateId(), ...data });
 }
 
+export async function renameBillingRunFn({ data }: { data: { runId: string; cycleLabel: string } }) {
+  return request<void>("PATCH", `/billing/run/${data.runId}`, { cycleLabel: data.cycleLabel });
+}
+
 // ---------- onboarding ----------
 export interface OnboardingState {
   step: number;
