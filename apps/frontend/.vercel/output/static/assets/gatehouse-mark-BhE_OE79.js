@@ -1,0 +1,1 @@
+var e=`/assets/gatehouse-mark-DBCQHzDa.jpeg`;export{e as t};

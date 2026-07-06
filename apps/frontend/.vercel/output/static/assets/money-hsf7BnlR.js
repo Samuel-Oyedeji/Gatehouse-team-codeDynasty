@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-Bypl69v7.js";import{r as t}from"./format-CfIXKDkF.js";var n=e();function r({value:e,className:r=``,muted:i=!1}){return(0,n.jsx)(`span`,{className:`money tabular ${i?`text-muted-foreground`:``} ${r}`,children:t(e)})}export{r as t};
