@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SectionHeader } from "@/components/gatehouse/section-header";
 import { KpiCard } from "@/components/gatehouse/kpi-card";
+import { AccountBalanceCard } from "@/components/gatehouse/account-balance-card";
 import { Money } from "@/components/gatehouse/money";
 import { StatusPill } from "@/components/gatehouse/status-pill";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, CartesianGrid, Tooltip } from "recharts";
@@ -17,7 +18,7 @@ export const Route = createFileRoute("/app/reports")({
 });
 
 function ReportsPage() {
-  const { units, vendors, payouts, cycle } = useGatehouse();
+  const { units, vendors, payouts, payments, estate, cycle } = useGatehouse();
   const collected = units.reduce((a, u) => a + u.charges.reduce((b, c) => b + c.paid, 0), 0);
   const spent = payouts.reduce((a, p) => a + p.amount, 0);
   const arrears = units.filter((u) => u.balance > 0).sort((a, b) => b.balance - a.balance);
@@ -27,14 +28,15 @@ function ReportsPage() {
     amount: payouts.filter((p) => p.vendorId === v.id).reduce((a, p) => a + p.amount, 0),
   }));
 
-  const trend = [
-    { week: "W1", collected: 380000 },
-    { week: "W2", collected: 720000 },
-    { week: "W3", collected: 480000 },
-    { week: "W4", collected: 350000 },
-    { week: "W5", collected: 280000 },
-    { week: "W6", collected: 220000 },
-  ];
+  // Real collection-over-time: sum non-exception payments per day (last 8 days seen).
+  const byDay = new Map<string, number>();
+  for (const p of payments) {
+    if (p.status === "exception") continue;
+    const d = new Date(p.timestamp);
+    const key = `${d.getMonth() + 1}/${d.getDate()}`;
+    byDay.set(key, (byDay.get(key) ?? 0) + p.amount);
+  }
+  const trend = [...byDay.entries()].slice(-8).map(([week, amount]) => ({ week, collected: amount }));
 
   return (
     <>
@@ -46,10 +48,11 @@ function ReportsPage() {
         </TabsList>
 
         <TabsContent value="financials" className="mt-4 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard label="Total collected" value={<Money value={collected} />} />
             <KpiCard label="Total spent" value={<Money value={spent} />} />
-            <KpiCard label="Balance" value={<Money value={collected - spent} />} sub="Sitting in estate account" />
+            <KpiCard label="Balance" value={<Money value={collected - spent} />} sub="Expected — collected minus spent" />
+            <AccountBalanceCard />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -117,7 +120,7 @@ function ReportsPage() {
             </Button>
           </div>
           <Card className="p-8 max-w-2xl mx-auto">
-            <div className="text-sm text-muted-foreground">Maple Court · {cycle}</div>
+            <div className="text-sm text-muted-foreground">{estate.name} · {cycle}</div>
             <h2 className="font-display text-3xl font-semibold mt-2">Where your dues went</h2>
             <p className="mt-4 text-ink leading-relaxed">
               This quarter, residents paid <span className="font-semibold tabular"><Money value={collected} /></span>{" "}

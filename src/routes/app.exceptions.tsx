@@ -99,6 +99,11 @@ function ExceptionCard({ ex, payment, unit }: any) {
               Attribute to {unit?.label} (paid on behalf)
             </Button>
           )}
+          {ex.type === "reversal" && (
+            <Button className="w-full" onClick={() => { store.resolveException(ex.id, "acknowledge"); toast.success("Reversal acknowledged"); }}>
+              Acknowledge (balance adjusted)
+            </Button>
+          )}
         </div>
       </div>
     </Card>

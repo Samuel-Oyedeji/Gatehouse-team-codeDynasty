@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/samueloyedeji/Desktop/gatehouse-backend/**)",
+      "Bash(npm run *)",
+      "WebFetch(domain:developer.nomba.com)"
+    ],
+    "additionalDirectories": [
+      "/Users/samueloyedeji/Desktop/gatehouse-backend/src/modules/reports",
+      "/Users/samueloyedeji/Desktop/gatehouse-backend/src/modules/onboarding",
+      "/Users/samueloyedeji/Desktop/gatehouse-backend/src",
+      "/Users/samueloyedeji/Desktop/gatehouse-backend"
+    ]
+  }
+}

@@ -14,6 +14,8 @@ const MAP: Record<string, { label: string; bg: string; fg: string }> = {
   duplicate: { label: "Duplicate", bg: "#FFFBEB", fg: "#B45309" },
   misdirected: { label: "Misdirected", bg: "#FFF1F2", fg: "#BE123C" },
   third_party: { label: "Third-party", bg: "#EEF2FF", fg: "#4338CA" },
+  reversed: { label: "Reversed", bg: "#FFF1F2", fg: "#BE123C" },
+  reversal: { label: "Reversed", bg: "#FFF1F2", fg: "#BE123C" },
 };
 
 export function StatusPill({ kind, children }: { kind: Kind; children?: React.ReactNode }) {

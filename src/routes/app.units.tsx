@@ -9,44 +9,54 @@ import { Money } from "@/components/gatehouse/money";
 import { AccountNumber } from "@/components/gatehouse/account-number";
 import { UnitDetailSheet } from "@/components/gatehouse/unit-detail-sheet";
 import { SectionHeader } from "@/components/gatehouse/section-header";
+import { AddUnitDialog } from "@/components/gatehouse/add-unit-dialog";
+import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/format";
-import { Search } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 
 export const Route = createFileRoute("/app/units")({
   component: UnitsPage,
 });
 
 function UnitsPage() {
-  const { units } = useGatehouse();
+  const { units, groups } = useGatehouse();
   const [q, setQ] = useState("");
-  const [block, setBlock] = useState("all");
+  const [group, setGroup] = useState("all");
   const [status, setStatus] = useState("all");
   const [open, setOpen] = useState<string | null>(null);
 
   const filtered = useMemo(() => units.filter((u) => {
-    if (block !== "all" && u.block !== block) return false;
+    if (group !== "all" && (group === "ungrouped" ? u.groupId != null : u.groupId !== group)) return false;
     if (status !== "all" && u.status !== status) return false;
     if (q && !`${u.label} ${u.occupant}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
-  }), [units, q, block, status]);
+  }), [units, q, group, status]);
 
   return (
     <>
-      <SectionHeader title="Units" sub={`${units.length} units across 4 blocks.`} />
+      <SectionHeader
+        title="Units"
+        sub={`${units.length} units${groups.length ? ` · ${groups.length} groups` : ""}.`}
+        action={
+          <AddUnitDialog>
+            <Button><Plus size={14} className="mr-1.5" />Add unit</Button>
+          </AddUnitDialog>
+        }
+      />
       <Card className="overflow-hidden p-0">
         <div className="flex flex-wrap gap-3 p-4 border-b border-border bg-card">
           <div className="relative flex-1 min-w-[220px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Search by unit or occupant" value={q} onChange={(e) => setQ(e.target.value)} className="pl-9" />
           </div>
-          <Select value={block} onValueChange={setBlock}>
+          <Select value={group} onValueChange={setGroup}>
             <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All blocks</SelectItem>
-              <SelectItem value="A">Block A</SelectItem>
-              <SelectItem value="B">Block B</SelectItem>
-              <SelectItem value="C">Block C</SelectItem>
-              <SelectItem value="D">Block D</SelectItem>
+              <SelectItem value="all">All groups</SelectItem>
+              <SelectItem value="ungrouped">Ungrouped</SelectItem>
+              {groups.map((g) => (
+                <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={setStatus}>

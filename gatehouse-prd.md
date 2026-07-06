@@ -2,7 +2,7 @@
 
 Estate dues and service charge collection, built on Nomba virtual accounts.
 
-> This document is for an engineering agent (Claude Code) to implement the backend and real integrations behind a frontend prototype that was generated in Lovable. The prototype ships as a Vite React app with mock data and client-side state. The first job is to port it to Next.js (App Router) and then replace the mock data with real persistence and live Nomba API calls.
+> This document is for an engineering agent (Claude Code) to implement the backend and real integrations behind a frontend prototype. The prototype ships as a Vite React app with mock data and client-side state. The first job is to port it to Next.js (App Router) and then replace the mock data with real persistence and live Nomba API calls.
 >
 > Verify all Nomba endpoint shapes, field names, webhook event names, and signature schemes against the live documentation at https://developer.nomba.com before implementing. Where this PRD states a payload, treat it as the intended contract and confirm exact spelling against the docs.
 
@@ -126,7 +126,7 @@ Confirm exact paths, field names, auth headers, and event names against https://
 
 ## 8. Pages and acceptance criteria
 
-The Lovable prototype already contains these screens. Wire each to real data and logic.
+The frontend prototype already contains these screens. Wire each to real data and logic.
 
 - **Landing, auth.** Functional signup and login. Session handling.
 - **Onboarding wizard.** Persists estate, fee structure, units. Provisions a virtual account per unit on save and displays the numbers. Acceptance: a newly added unit has a stored, valid NUBAN.

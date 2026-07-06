@@ -1,11 +1,22 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Home, Receipt, ArrowLeftRight, AlertTriangle, Wrench, FileBarChart, Settings as SettingsIcon } from "lucide-react";
+import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useState } from "react";
+import { LayoutDashboard, Home, Receipt, ArrowLeftRight, AlertTriangle, Wrench, FileBarChart, Settings as SettingsIcon, LogOut } from "lucide-react";
 import { useGatehouse } from "@/lib/store";
+import { fetchCurrentUser, logoutFn } from "@/lib/api";
+import { useLiveUpdates } from "@/lib/use-live-updates";
 import { SimulatePayment } from "@/components/gatehouse/simulate-payment";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import markAsset from "@/assets/gatehouse-mark.jpeg";
 
 export const Route = createFileRoute("/app")({
+  beforeLoad: async () => {
+    // Auth is a client-side JWT (localStorage), so gate on the client only; the
+    // server render falls through and the client re-checks on hydration.
+    if (typeof window === "undefined") return;
+    const user = await fetchCurrentUser();
+    if (!user) throw redirect({ to: "/login" });
+    if (!user.onboarded) throw redirect({ to: "/onboarding" });
+  },
   component: AppShell,
 });
 
@@ -21,8 +32,20 @@ const NAV = [
 ] as const;
 
 function AppShell() {
+  useLiveUpdates();
+  const nav = useNavigate();
   const { estate, cycle, exceptions } = useGatehouse();
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    // Tears down the JWT, estate id, cached queries and (on unmount) the SSE
+    // stream, then sends the user back to the login screen.
+    await logoutFn();
+    nav({ to: "/login" });
+  }
 
   return (
     <div className="min-h-screen flex bg-canvas">
@@ -59,8 +82,16 @@ function AppShell() {
             );
           })}
         </nav>
-        <div className="p-4 border-t border-border text-xs text-muted-foreground">
-          Funds settle directly into the estate's own account. Gatehouse never holds money.
+        <div className="p-3 border-t border-border">
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-ink disabled:opacity-60"
+          >
+            <LogOut size={16} />
+            <span className="flex-1 text-left">{loggingOut ? "Signing out…" : "Log out"}</span>
+          </button>
         </div>
       </aside>
 
