@@ -37,3 +37,30 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code
+.claude/
+
+# Prettier
+.prettierrc
+.prettierrc.js
+.prettierrc.cjs
+.prettierrc.mjs
+.prettierrc.json
+.prettierrc.json5
+.prettierrc.yaml
+.prettierrc.yml
+prettier.config.js
+prettier.config.cjs
+prettier.config.mjs
+
+# Sensitive / local config
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+.npmrc
+.yarnrc
+.yarnrc.yml
